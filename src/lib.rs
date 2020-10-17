@@ -200,7 +200,7 @@
 //! xshell is an ex-shell, for those who grew tired of bash.<br>
 //! xshell is an x-platform shell, for those who don't want to run `build.sh` on windows.<br>
 //! xshell is built for [`xtask`](https://github.com/matklad/cargo-xtask).<br>
-//! xshell uses x-traordinary level of [trickery](https://github.com/matklad/xshell/blob/1bbff3c95338ce3c188143455a4f5c807e7882bd/src/lib.rs#L31-L32),
+//! xshell uses x-traordinary level of [trickery](https://github.com/matklad/xshell/blob/843df7cd5b7d69fc9d2b884dc0852598335718fe/src/lib.rs#L233-L234),
 //! just like `xtask` [does](https://matklad.github.io/2018/01/03/make-your-own-make.html).
 
 mod env;

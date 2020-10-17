@@ -60,7 +60,7 @@ fn try_main() -> Result<()> {
         {
             let _p = pushd("xshell-macros")?;
             cmd!("cargo publish --token {token} {dry_run...}").run()?;
-            std::thread::sleep(std::time::Duration::from_secs(5));
+            std::thread::sleep(std::time::Duration::from_secs(60));
         }
         cmd!("cargo publish --token {token} {dry_run...}").run()?;
         cmd!("git push --tags {dry_run...}").run()?;
