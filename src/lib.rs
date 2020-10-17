@@ -3,6 +3,7 @@
 //! Docs are incoming, take a look at the `examples/ci.rs` in the meantime.
 
 mod env;
+mod gsl;
 mod error;
 mod fs;
 

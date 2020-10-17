@@ -1,14 +1,9 @@
 use std::{
-    cell::Cell,
-    ffi::OsStr,
-    ffi::OsString,
-    mem::MaybeUninit,
+    ffi::{OsStr, OsString},
     path::{Path, PathBuf},
-    ptr,
-    sync::{Mutex, MutexGuard, Once},
 };
 
-use crate::{cwd, error::fs_err, Result};
+use crate::{cwd, error::fs_err, gsl, Result};
 
 pub fn pushd(dir: impl AsRef<Path>) -> Result<Pushd> {
     Pushd::new(dir.as_ref())
@@ -16,7 +11,7 @@ pub fn pushd(dir: impl AsRef<Path>) -> Result<Pushd> {
 
 #[must_use]
 pub struct Pushd {
-    _guard: GlobalShellLock,
+    _guard: gsl::Guard,
     prev_dir: PathBuf,
     dir: PathBuf,
 }
@@ -27,7 +22,7 @@ pub fn pushenv(k: impl AsRef<OsStr>, v: impl AsRef<OsStr>) -> Pushenv {
 
 #[must_use]
 pub struct Pushenv {
-    _guard: GlobalShellLock,
+    _guard: gsl::Guard,
     key: OsString,
     prev_value: Option<OsString>,
     value: OsString,
@@ -35,7 +30,7 @@ pub struct Pushenv {
 
 impl Pushd {
     fn new(dir: &Path) -> Result<Pushd> {
-        let guard = GlobalShellLock::lock();
+        let guard = gsl::lock();
         let prev_dir = cwd()?;
         set_current_dir(&dir)?;
         let dir = cwd()?;
@@ -65,7 +60,7 @@ fn set_current_dir(path: &Path) -> Result<()> {
 
 impl Pushenv {
     fn new(key: &OsStr, value: &OsStr) -> Pushenv {
-        let guard = GlobalShellLock::lock();
+        let guard = gsl::lock();
         let prev_value = std::env::var_os(key);
         std::env::set_var(key, value);
         Pushenv { _guard: guard, key: key.to_os_string(), prev_value, value: value.to_os_string() }
@@ -89,39 +84,6 @@ got      {:?}",
         match &self.prev_value {
             Some(it) => std::env::set_var(&self.key, &it),
             None => std::env::remove_var(&self.key),
-        }
-    }
-}
-
-struct GlobalShellLock {
-    guard: Option<MutexGuard<'static, ()>>,
-}
-
-static mut MUTEX: MaybeUninit<Mutex<()>> = MaybeUninit::uninit();
-static MUTEX_INIT: Once = Once::new();
-thread_local! {
-    pub static LOCKED: Cell<bool> = Cell::new(false);
-}
-
-impl GlobalShellLock {
-    fn lock() -> GlobalShellLock {
-        if LOCKED.with(|it| it.get()) {
-            return GlobalShellLock { guard: None };
-        }
-
-        let guard = unsafe {
-            MUTEX_INIT.call_once(|| ptr::write(MUTEX.as_mut_ptr(), Mutex::new(())));
-            (*MUTEX.as_ptr()).lock().unwrap()
-        };
-        LOCKED.with(|it| it.set(true));
-        GlobalShellLock { guard: Some(guard) }
-    }
-}
-
-impl Drop for GlobalShellLock {
-    fn drop(&mut self) {
-        if self.guard.is_some() {
-            LOCKED.with(|it| it.set(false))
         }
     }
 }
