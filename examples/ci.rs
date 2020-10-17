@@ -1,3 +1,6 @@
+//! This CI script for `xshell`.
+//!
+//! It also serves as a real-world example, yay bootstrap!
 use std::{env, process, time::Instant};
 
 use xshell::{cmd, pushd, read_file, rm_rf, Result};
