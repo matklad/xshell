@@ -191,7 +191,6 @@ fn versions_match() {
         let text = read_file(path).unwrap();
         text.lines().find(|it| it.starts_with("version =")).unwrap().trim().to_string()
     };
-    eprintln!("cwd() = {:?}", cwd());
 
     let v1 = read_version("./Cargo.toml");
     let v2 = read_version("./xshell-macros/Cargo.toml");
