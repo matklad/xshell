@@ -67,7 +67,10 @@ fn try_main() -> Result<()> {
                         .ignore_status()
                         .read_stderr()?;
 
-                if err_msg.contains("no bin target") {
+                let not_found = err_msg.contains("could not find ");
+                let tried_installing = err_msg.contains("Installing");
+                assert!(not_found ^ tried_installing);
+                if tried_installing {
                     break;
                 }
             }
