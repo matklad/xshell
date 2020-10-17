@@ -2,7 +2,7 @@
 name = "xshell"
 description = "Utilities for quick shell scripting in Rust"
 categories = ["development-tools::build-utils", "filesystem"]
-version = "0.1.4"
+version = "0.1.5"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/matklad/xshell"
 authors = ["Aleksey Kladov <aleksey.kladov@gmail.com>"]
@@ -13,4 +13,4 @@ exclude = [".github/", "bors.toml", "rustfmt.toml", "cbench"]
 [workspace]
 
 [dependencies]
-xshell-macros = { version = "0.1.4", path = "./xshell-macros"}
+xshell-macros = { version = "0.1.5", path = "./xshell-macros"}
