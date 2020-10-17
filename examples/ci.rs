@@ -49,11 +49,14 @@ fn try_main() -> Result<()> {
         let dry_run =
             if tag_exists || &current_branch != "master" { &["--dry-run"][..] } else { &[] };
 
+        if dry_run.is_empty() {
+            cmd!("git tag v{version}").run()?;
+        }
+
         let token = env::var("CRATES_IO_TOKEN").unwrap_or("DUMMY_TOKEN".to_string());
-        cmd!("git tag v{version}").run()?;
         {
             let _p = pushd("xshell-macros")?;
-            cmd!("cargo publish --token {token} --dry-run").run()?;
+            cmd!("cargo publish --token {token} {dry_run...}").run()?;
             std::thread::sleep(std::time::Duration::from_secs(5));
         }
         cmd!("cargo publish --token {token} {dry_run...}").run()?;
