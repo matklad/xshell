@@ -1,6 +1,6 @@
-use std::{ffi::OsStr, thread};
+use std::{ffi::OsStr, thread, time::Duration, time::Instant};
 
-use xshell::{cmd, cwd, pushd, pushenv, read_file};
+use xshell::{cmd, cwd, pushd, pushenv, read_file, rm_rf};
 
 #[test]
 fn smoke() {
@@ -194,6 +194,36 @@ fn test_pushenv_lock() {
 
     t1.join().unwrap();
     t2.join().unwrap();
+}
+
+#[test]
+fn fixed_cost_compile_times() {
+    let _p = pushd("cbench");
+    let baseline = {
+        let _p = pushd("baseline");
+        compile_bench()
+    };
+    let xshelled = {
+        let _p = pushd("xshelled");
+        compile_bench()
+    };
+    let ratio = (xshelled.as_millis() as f64) / (baseline.as_millis() as f64);
+    assert!(1.0 < ratio && ratio < 10.0)
+}
+
+fn compile_bench() -> Duration {
+    let n = 5;
+    let mut times = Vec::new();
+    for _ in 0..n {
+        rm_rf("./target").unwrap();
+        let start = Instant::now();
+        cmd!("cargo build").read().unwrap();
+        times.push(start.elapsed());
+    }
+    times.sort();
+    times.remove(0);
+    times.pop();
+    times.into_iter().sum::<Duration>()
 }
 
 #[test]
