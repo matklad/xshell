@@ -3,6 +3,7 @@ name = "xshelled"
 version = "0.0.0"
 authors = ["Aleksey Kladov <aleksey.kladov@gmail.com>"]
 edition = "2018"
+[workspace]
 
 [dependencies]
 xshell = { path = "../../" }
