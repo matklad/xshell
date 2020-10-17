@@ -66,6 +66,18 @@ fn exit_status() {
 }
 
 #[test]
+fn ignore_status() {
+    let output = cmd!("false").ignore_status().read().unwrap();
+    assert_eq!(output, "");
+}
+
+#[test]
+fn read_stderr() {
+    let output = cmd!("git fail").ignore_status().read_stderr().unwrap();
+    assert!(output.contains("fail"));
+}
+
+#[test]
 fn unknown_command() {
     let err = cmd!("nope no way").read().unwrap_err();
     assert_eq!(err.to_string(), "command not found: `nope`");

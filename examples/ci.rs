@@ -1,7 +1,7 @@
 //! This CI script for `xshell`.
 //!
 //! It also serves as a real-world example, yay bootstrap!
-use std::{env, process, time::Instant};
+use std::{env, process, thread, time::Duration, time::Instant};
 
 use xshell::{cmd, pushd, read_file, rm_rf, Result};
 
@@ -60,7 +60,17 @@ fn try_main() -> Result<()> {
         {
             let _p = pushd("xshell-macros")?;
             cmd!("cargo publish --token {token} {dry_run...}").run()?;
-            std::thread::sleep(std::time::Duration::from_secs(60));
+            for _ in 0..100 {
+                thread::sleep(Duration::from_secs(3));
+                let err_msg =
+                    cmd!("cargo install xshell-macros --version {version} --bin non-existing")
+                        .ignore_status()
+                        .read_stderr()?;
+
+                if err_msg.contains("no bin target") {
+                    break;
+                }
+            }
         }
         cmd!("cargo publish --token {token} {dry_run...}").run()?;
         cmd!("git push --tags {dry_run...}").run()?;

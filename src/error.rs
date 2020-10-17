@@ -34,7 +34,7 @@ impl fmt::Display for Error {
                         write!(f, "command `{}` failed, {}", err.cmd, errstr(io_err))
                     }
                 }
-                CmdErrorKind::NonUtf8Stdout(utf8_err) => {
+                CmdErrorKind::NonUtf8Output(utf8_err) => {
                     write!(f, "command `{}` produced invalid utf8, {}", err.cmd, utf8_err)
                 }
             },
@@ -59,7 +59,7 @@ pub(crate) struct CmdError {
 pub(crate) enum CmdErrorKind {
     NonZeroStatus(ExitStatus),
     Io(io::Error),
-    NonUtf8Stdout(FromUtf8Error),
+    NonUtf8Output(FromUtf8Error),
 }
 
 impl CmdErrorKind {

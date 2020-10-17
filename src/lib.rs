@@ -243,6 +243,7 @@ macro_rules! cmd {
 pub struct Cmd {
     args: Vec<OsString>,
     stdin_contents: Option<Vec<u8>>,
+    ignore_status: bool,
 }
 
 impl fmt::Display for Cmd {
@@ -274,7 +275,11 @@ impl Cmd {
         Cmd::_new(program.as_ref())
     }
     fn _new(program: &Path) -> Cmd {
-        Cmd { args: vec![program.as_os_str().to_owned()], stdin_contents: None }
+        Cmd {
+            args: vec![program.as_os_str().to_owned()],
+            stdin_contents: None,
+            ignore_status: false,
+        }
     }
 
     pub fn arg(mut self, arg: impl AsRef<OsStr>) -> Cmd {
@@ -302,6 +307,11 @@ impl Cmd {
         self.args.last_mut().unwrap().push(arg)
     }
 
+    pub fn ignore_status(mut self) -> Cmd {
+        self.ignore_status = true;
+        self
+    }
+
     pub fn stdin(mut self, stdin: impl AsRef<[u8]>) -> Cmd {
         self._stdin(stdin.as_ref());
         self
@@ -311,21 +321,40 @@ impl Cmd {
     }
 
     pub fn read(self) -> Result<String> {
-        match self.read_raw() {
-            Ok(output) if output.status.success() => {
-                let mut stdout = String::from_utf8(output.stdout)
-                    .map_err(|utf8_err| CmdErrorKind::NonUtf8Stdout(utf8_err).err(self))?;
-                if stdout.ends_with('\n') {
-                    stdout.pop();
+        self.read_stream(false)
+    }
+
+    pub fn read_stderr(self) -> Result<String> {
+        self.read_stream(true)
+    }
+
+    pub fn run(self) -> Result<()> {
+        println!("$ {}", self);
+        match self.command().status() {
+            Ok(status) if status.success() || self.ignore_status => Ok(()),
+            Ok(status) => Err(CmdErrorKind::NonZeroStatus(status).err(self)),
+            Err(io_err) => Err(CmdErrorKind::Io(io_err).err(self)),
+        }
+    }
+
+    fn read_stream(self, read_stderr: bool) -> Result<String> {
+        match self.output() {
+            Ok(output) if output.status.success() || self.ignore_status => {
+                let stream = if read_stderr { output.stderr } else { output.stdout };
+                let mut stream = String::from_utf8(stream)
+                    .map_err(|utf8_err| CmdErrorKind::NonUtf8Output(utf8_err).err(self))?;
+                if stream.ends_with('\n') {
+                    stream.pop();
                 }
 
-                Ok(stdout)
+                Ok(stream)
             }
             Ok(output) => Err(CmdErrorKind::NonZeroStatus(output.status).err(self)),
             Err(io_err) => Err(CmdErrorKind::Io(io_err).err(self)),
         }
     }
-    fn read_raw(&self) -> io::Result<Output> {
+
+    fn output(&self) -> io::Result<Output> {
         let mut child = self
             .command()
             .stdin(match &self.stdin_contents {
@@ -342,15 +371,6 @@ impl Cmd {
             stdin.flush()?;
         }
         child.wait_with_output()
-    }
-
-    pub fn run(self) -> Result<()> {
-        println!("$ {}", self);
-        match self.command().status() {
-            Ok(status) if status.success() => Ok(()),
-            Ok(status) => Err(CmdErrorKind::NonZeroStatus(status).err(self)),
-            Err(io_err) => Err(CmdErrorKind::Io(io_err).err(self)),
-        }
     }
 
     fn command(&self) -> std::process::Command {
