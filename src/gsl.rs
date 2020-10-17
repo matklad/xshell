@@ -4,29 +4,39 @@ use std::{
     mem::MaybeUninit,
     ptr,
     sync::Once,
-    sync::{Mutex, MutexGuard},
+    sync::{RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
 pub(crate) struct Guard {
-    guard: Option<MutexGuard<'static, ()>>,
+    r_guard: Option<RwLockReadGuard<'static, ()>>,
+    w_guard: Option<RwLockWriteGuard<'static, ()>>,
 }
 
-pub(crate) fn lock() -> Guard {
+pub(crate) fn write() -> Guard {
     if LOCKED.with(|it| it.get()) {
-        return Guard { guard: None };
+        return Guard { r_guard: None, w_guard: None };
     }
 
-    let guard = static_mutex().lock().unwrap_or_else(|err| err.into_inner());
+    let w_guard = static_rw_lock().write().unwrap_or_else(|err| err.into_inner());
     LOCKED.with(|it| it.set(true));
-    Guard { guard: Some(guard) }
+    Guard { w_guard: Some(w_guard), r_guard: None }
 }
 
-fn static_mutex() -> &'static Mutex<()> {
-    static mut MUTEX: MaybeUninit<Mutex<()>> = MaybeUninit::uninit();
-    static MUTEX_INIT: Once = Once::new();
+pub(crate) fn read() -> Guard {
+    if LOCKED.with(|it| it.get()) {
+        return Guard { r_guard: None, w_guard: None };
+    }
+
+    let r_guard = static_rw_lock().read().unwrap_or_else(|err| err.into_inner());
+    Guard { w_guard: None, r_guard: Some(r_guard) }
+}
+
+fn static_rw_lock() -> &'static RwLock<()> {
+    static mut LOCK: MaybeUninit<RwLock<()>> = MaybeUninit::uninit();
+    static LOCK_INIT: Once = Once::new();
     unsafe {
-        MUTEX_INIT.call_once(|| ptr::write(MUTEX.as_mut_ptr(), Mutex::new(())));
-        &*MUTEX.as_ptr()
+        LOCK_INIT.call_once(|| ptr::write(LOCK.as_mut_ptr(), RwLock::new(())));
+        &*LOCK.as_ptr()
     }
 }
 
@@ -36,8 +46,9 @@ thread_local! {
 
 impl Drop for Guard {
     fn drop(&mut self) {
-        if self.guard.is_some() {
+        if self.w_guard.is_some() {
             LOCKED.with(|it| it.set(false))
         }
+        let _ = self.r_guard;
     }
 }

@@ -30,7 +30,7 @@ pub struct Pushenv {
 
 impl Pushd {
     fn new(dir: &Path) -> Result<Pushd> {
-        let guard = gsl::lock();
+        let guard = gsl::write();
         let prev_dir = cwd()?;
         set_current_dir(&dir)?;
         let dir = cwd()?;
@@ -60,7 +60,7 @@ fn set_current_dir(path: &Path) -> Result<()> {
 
 impl Pushenv {
     fn new(key: &OsStr, value: &OsStr) -> Pushenv {
-        let guard = gsl::lock();
+        let guard = gsl::write();
         let prev_value = std::env::var_os(key);
         std::env::set_var(key, value);
         Pushenv { _guard: guard, key: key.to_os_string(), prev_value, value: value.to_os_string() }
