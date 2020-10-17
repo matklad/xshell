@@ -1,4 +1,3 @@
-
 use std::{ffi::OsStr, thread, time::Duration, time::Instant};
 
 use xshell::{cmd, cwd, pushd, pushenv, read_file, rm_rf};
