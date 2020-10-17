@@ -28,14 +28,21 @@ pub fn __cmd(macro_arg: TokenStream) -> TokenStream {
         res.extend(program);
     }
 
+    let mut prev_spat = false;
     for (joined_to_prev, splat, arg) in args {
         assert!(!(joined_to_prev && splat));
+        if prev_spat && joined_to_prev {
+            panic!("can't splat and concat simultaneously")
+        }
+        prev_spat = splat;
+
         let method = match (joined_to_prev, splat) {
             (false, false) => ".arg",
             (false, true) => ".args",
             (true, false) => ".__extend_arg",
-            (true, true) => panic!("can't splat and contat simultaneously"),
+            (true, true) => panic!("can't splat and concat simultaneously"),
         };
+
         res.extend(parse_ts(method));
         res.extend(arg);
     }
@@ -56,11 +63,12 @@ fn shell_lex(cmd: &str, call_site: Span) -> impl Iterator<Item = (bool, bool, To
             TokenKind::Interpolation { splat: s } => {
                 splat = s;
                 let text = trim_decorations(token.text);
-                let ts = if splat {
-                    format!("({})", &text[..text.len() - "...".len()])
-                } else {
-                    format!("(&({}))", trim_decorations(token.text))
-                };
+                let text = &text[..text.len() - (if splat { "...".len() } else { 0 })];
+                assert!(
+                    text.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'),
+                    "can only interpolate variables"
+                );
+                let ts = if splat { format!("({})", text) } else { format!("(&({}))", text) };
                 respan(parse_ts(&ts), call_site)
             }
         };

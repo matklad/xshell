@@ -379,3 +379,24 @@ impl Cmd {
         res
     }
 }
+
+/// ```compile_fail
+/// let echo = "echo".to_string();
+/// xshell::cmd!("{echo.as_str()}");
+/// ```
+///
+/// ```compile_fail
+/// let args = &[""];
+/// xshell::cmd!("echo a{args...}");
+/// ```
+///
+/// ```compile_fail
+/// let args = &[""];
+/// xshell::cmd!("echo {args...}b");
+/// ```
+///
+/// ```
+/// let args = &[""];
+/// xshell::cmd!("echo a {args...} b");
+/// ```
+fn _compile_fail_tests() {}
