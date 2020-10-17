@@ -103,6 +103,13 @@
 //! );
 //! ```
 //!
+//! <hr>
+//!
+//! The `cmd!` syntax parses the string template at compile-time and hands the
+//! interpolated values to the underlying `std::process::Command` as is. It is
+//! not vulnerable to
+//! [shell injection](https://en.wikipedia.org/wiki/Code_injection#Shell_injection).
+//!
 //! ## Manipulating the Environment
 //!
 //! Instead of `cd` and `export`, xshell uses RAII based `pushd` and `pushenv`
