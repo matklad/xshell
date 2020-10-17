@@ -289,13 +289,6 @@ impl Cmd {
         args.into_iter().for_each(|it| self._arg(it.as_ref()));
         self
     }
-    pub fn arg_if(mut self, cond: bool, arg: impl AsRef<OsStr>) -> Cmd {
-        if cond {
-            self._arg(arg.as_ref())
-        }
-        self
-    }
-
     fn _arg(&mut self, arg: &OsStr) {
         self.args.push(arg.to_owned())
     }
