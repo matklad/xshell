@@ -1,6 +1,6 @@
 use std::{ffi::OsStr, thread, time::Duration, time::Instant};
 
-use xshell::{cmd, cwd, pushd, pushenv, read_file, rm_rf};
+use xshell::{cmd, cwd, mkdir_p, pushd, pushenv, read_file, rm_rf, write_file};
 
 #[test]
 fn smoke() {
@@ -196,6 +196,76 @@ fn test_pushenv_lock() {
     t2.join().unwrap();
 }
 
+fn check_failure(code: &str, err_msg: &str) {
+    mkdir_p("./target/cf").unwrap();
+    let _p = pushd("./target/cf").unwrap();
+
+    write_file(
+        "Cargo.toml",
+        r#"
+[package]
+name = "cftest"
+version = "0.0.0"
+edition = "2018"
+[workspace]
+
+[lib]
+path = "main.rs"
+
+[dependencies]
+xshell = { path = "../../" }
+"#,
+    )
+    .unwrap();
+
+    let snip = format!(
+        "
+use xshell::*;
+pub fn f() {{
+    {};
+}}
+",
+        code
+    );
+    write_file("main.rs", snip).unwrap();
+
+    let stderr = cmd!("cargo build").ignore_status().read_stderr().unwrap();
+    assert!(
+        stderr.contains(err_msg),
+        "\n\nCompile fail fail!\n\nExpected:\n{}\n\nActual:\n{}\n",
+        err_msg,
+        stderr
+    );
+}
+
+#[test]
+fn test_compile_failures() {
+    check_failure("cmd!(92)", "expected a plain string literal");
+    check_failure(r#"cmd!(r"raw")"#, "expected a plain string literal");
+
+    check_failure(
+        r#"cmd!("{echo.as_str()}")"#,
+        "error: can only interpolate simple variables, got this expression instead: `echo.as_str()`",
+    );
+
+    check_failure(
+        r#"cmd!("echo a{args...}")"#,
+        "error: can't combine splat with concatenation, add spaces around `{args...}`",
+    );
+    check_failure(
+        r#"cmd!("echo {args...}b")"#,
+        "error: can't combine splat with concatenation, add spaces around `{args...}`",
+    );
+    check_failure(
+        r#"cmd!("echo a{args...}b")"#,
+        "error: can't combine splat with concatenation, add spaces around `{args...}`",
+    );
+    check_failure(r#"cmd!("")"#, "error: command can't be empty");
+    check_failure(r#"cmd!("{cmd...}")"#, "error: can't splat program name");
+    check_failure(r#"cmd!("echo 'hello world")"#, "error: unclosed `'` in command");
+    check_failure(r#"cmd!("echo {hello world")"#, "error: unclosed `{` in command");
+}
+
 #[test]
 fn fixed_cost_compile_times() {
     let _p = pushd("cbench");
@@ -203,6 +273,7 @@ fn fixed_cost_compile_times() {
         let _p = pushd("baseline");
         compile_bench()
     };
+
     let xshelled = {
         let _p = pushd("xshelled");
         compile_bench()
@@ -218,7 +289,8 @@ fn compile_bench() -> Duration {
         rm_rf("./target").unwrap();
         let start = Instant::now();
         cmd!("cargo build").read().unwrap();
-        times.push(start.elapsed());
+        let elapsed = start.elapsed();
+        times.push(elapsed);
     }
     times.sort();
     times.remove(0);
