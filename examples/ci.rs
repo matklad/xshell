@@ -80,7 +80,7 @@ impl Section {
 
 impl Drop for Section {
     fn drop(&mut self) {
-        eprintln!("{}: {:.2?}", self.name, self.start.elapsed());
+        println!("{}: {:.2?}", self.name, self.start.elapsed());
         println!("::endgroup::");
     }
 }
