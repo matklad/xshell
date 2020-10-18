@@ -25,9 +25,7 @@
 //! **Goals**: fast compile times, ergonomics, clear error messages.<br>
 //! **Non goals**: completeness, robustness / misuse resistance.
 //!
-//! For "heavy-duty" code, consider using
-//! [`duct`](https://github.com/oconnor663/duct.rs) or
-//! [`std::process::Command`](https://doc.rust-lang.org/stable/std/process/struct.Command.html)
+//! For "heavy-duty" code, consider using [`duct`] or [`std::process::Command`]
 //! instead.
 //!
 //! # API Overview
@@ -112,9 +110,18 @@
 //! <hr>
 //!
 //! The `cmd!` syntax parses the string template at compile-time and hands the
-//! interpolated values to the underlying `std::process::Command` as is. It is
+//! interpolated values to the underlying [`std::process::Command`] as is. It is
 //! not vulnerable to
 //! [shell injection](https://en.wikipedia.org/wiki/Code_injection#Shell_injection).
+//!
+//! xshell does not provide API for creating command pipelines. If you need
+//! pipelines, consider using [`duct`] instead. Alternatively, you can convert
+//! `xshell::Cmd` into [`std::process::Command`]:
+//!
+//! ```
+//! # use xshell::cmd;
+//! let command: std::process::Command = cmd!("echo 'hello world'").into();
+//! ```
 //!
 //! ## Manipulating the Environment
 //!
@@ -166,8 +173,7 @@
 //! * [Running External Programs](https://docs.julialang.org/en/v1/manual/running-external-programs/)
 //! * [Filesystem](https://docs.julialang.org/en/v1/base/file/)
 //!
-//! Smaller influences are the [`duct`](https://github.com/oconnor663/duct.rs)
-//! crate and Ruby's
+//! Smaller influences are the [`duct`] crate and Ruby's
 //! [`FileUtils`](https://ruby-doc.org/stdlib-2.4.1/libdoc/fileutils/rdoc/FileUtils.html)
 //! module.
 //!
@@ -215,6 +221,9 @@
 //! xshell is built for [`xtask`](https://github.com/matklad/cargo-xtask).<br>
 //! xshell uses x-traordinary level of [trickery](https://github.com/matklad/xshell/blob/843df7cd5b7d69fc9d2b884dc0852598335718fe/src/lib.rs#L233-L234),
 //! just like `xtask` [does](https://matklad.github.io/2018/01/03/make-your-own-make.html).
+//!
+//! [`duct`]: https://github.com/oconnor663/duct.rs
+//! [`std::process::Command`]: https://doc.rust-lang.org/stable/std/process/struct.Command.html
 
 mod env;
 mod gsl;
