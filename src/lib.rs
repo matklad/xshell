@@ -351,6 +351,7 @@ impl Cmd {
     }
 
     pub fn run(self) -> Result<()> {
+        let _guard = gsl::read();
         println!("$ {}", self);
         match self.command().status() {
             Ok(status) if status.success() || self.ignore_status => Ok(()),
@@ -381,15 +382,17 @@ impl Cmd {
     }
 
     fn output(&self) -> io::Result<Output> {
-        let mut child = self
-            .command()
-            .stdin(match &self.stdin_contents {
-                Some(_) => Stdio::piped(),
-                None => Stdio::null(),
-            })
-            .stderr(Stdio::piped())
-            .stdout(Stdio::piped())
-            .spawn()?;
+        let mut child = {
+            let _guard = gsl::read();
+            self.command()
+                .stdin(match &self.stdin_contents {
+                    Some(_) => Stdio::piped(),
+                    None => Stdio::null(),
+                })
+                .stderr(Stdio::piped())
+                .stdout(Stdio::piped())
+                .spawn()?
+        };
 
         if let Some(stdin_contents) = &self.stdin_contents {
             let mut stdin = child.stdin.take().unwrap();
