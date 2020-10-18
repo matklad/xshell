@@ -90,6 +90,21 @@
 //! );
 //! ```
 //!
+//! Note that the argument with a space is handled correctly. This is because
+//! `cmd!` macro parses the string template at compile time. The macro hands the
+//! interpolated values to the underlying `std::process::Command` as is and is
+//! not vulnerable to [shell
+//! injection](https://en.wikipedia.org/wiki/Code_injection#Shell_injection).
+//!
+//! Single quotes in literal arguments are supported:
+//!
+//! ```
+//! # use xshell::cmd;
+//! assert_eq!(
+//!     cmd!("echo 'hello world'").to_string(),
+//!     r#"echo "hello world""#,
+//! )
+//! ```
 //! Splat syntax is used for optional arguments idiom.
 //!
 //! ```
@@ -108,11 +123,6 @@
 //! ```
 //!
 //! <hr>
-//!
-//! The `cmd!` syntax parses the string template at compile-time and hands the
-//! interpolated values to the underlying [`std::process::Command`] as is. It is
-//! not vulnerable to
-//! [shell injection](https://en.wikipedia.org/wiki/Code_injection#Shell_injection).
 //!
 //! xshell does not provide API for creating command pipelines. If you need
 //! pipelines, consider using [`duct`] instead. Alternatively, you can convert
