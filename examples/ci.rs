@@ -50,9 +50,9 @@ fn try_main() -> Result<()> {
         let current_branch = cmd!("git branch --show-current").read()?;
 
         let dry_run =
-            if tag_exists || &current_branch != "master" { &["--dry-run"][..] } else { &[] };
+            if tag_exists || &current_branch != "master" { Some("--dry-run") } else { None };
 
-        if dry_run.is_empty() {
+        if dry_run.is_none() {
             cmd!("git tag v{version}").run()?;
         }
 

@@ -60,6 +60,17 @@ fn interpolation_spat() {
 }
 
 #[test]
+fn splat_idiom() {
+    let check = if true { &["--", "--check"][..] } else { &[] };
+    let cmd = cmd!("cargo fmt {check...}");
+    assert_eq!(cmd.to_string(), "cargo fmt -- --check");
+
+    let dry_run = if true { Some("--dry-run") } else { None };
+    let cmd = cmd!("cargo publish {dry_run...}");
+    assert_eq!(cmd.to_string(), "cargo publish --dry-run");
+}
+
+#[test]
 fn exit_status() {
     let err = cmd!("false").read().unwrap_err();
     assert_eq!(err.to_string(), "command `false` failed, exit code: 1");

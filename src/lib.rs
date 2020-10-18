@@ -92,11 +92,17 @@
 //! );
 //! ```
 //!
-//! Splat syntax is used for optional argument idiom.
+//! Splat syntax is used for optional arguments idiom.
 //!
 //! ```
 //! # use xshell::cmd;
-//! let dry_run = if true { &["--dry-run"] } else { &[][..] };
+//! let check = if true { &["--", "--check"] } else { &[][..] };
+//! assert_eq!(
+//!     cmd!("cargo fmt {check...}").to_string(),
+//!     "cargo fmt -- --check"
+//! );
+//!
+//! let dry_run = if true { Some("--dry-run") } else { None };
 //! assert_eq!(
 //!     cmd!("git push {dry_run...}").to_string(),
 //!     "git push --dry-run"
