@@ -350,7 +350,11 @@ impl Cmd {
                 let stream = if read_stderr { output.stderr } else { output.stdout };
                 let mut stream = String::from_utf8(stream)
                     .map_err(|utf8_err| CmdErrorKind::NonUtf8Output(utf8_err).err(self))?;
+
                 if stream.ends_with('\n') {
+                    stream.pop();
+                }
+                if stream.ends_with('\r') {
                     stream.pop();
                 }
 
@@ -386,4 +390,3 @@ impl Cmd {
         res
     }
 }
-
