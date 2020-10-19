@@ -4,8 +4,9 @@ use xshell::{cmd, cwd, mkdir_p, pushd, pushenv, read_file, rm_rf, write_file};
 
 #[test]
 fn smoke() {
-    let output = cmd!("echo hello").read().unwrap();
-    assert_eq!(output, "hello");
+    let pwd = "lol";
+    let cmd = cmd!("echo 'hello '{pwd}");
+    println!("{}", cmd);
 }
 
 #[test]
@@ -275,6 +276,20 @@ fn test_compile_failures() {
     check_failure(r#"cmd!("{cmd...}")"#, "error: can't splat program name");
     check_failure(r#"cmd!("echo 'hello world")"#, "error: unclosed `'` in command");
     check_failure(r#"cmd!("echo {hello world")"#, "error: unclosed `{` in command");
+
+    check_failure(
+        r#"
+    let x = 92;
+    cmd!("make -j {x}")"#,
+        r#"cmd!("make -j {x}")"#,
+    );
+
+    check_failure(
+        r#"
+    let dry_run: fn() -> Option<&'static str> = || None;
+    cmd!("make -j {dry_run...}")"#,
+        r#"cmd!("make -j {dry_run...}")"#,
+    );
 }
 
 #[test]

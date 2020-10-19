@@ -158,7 +158,7 @@ fn respan(ts: TokenStream, span: Span) -> TokenStream {
     for tt in ts {
         let tt = match tt {
             TokenTree::Ident(mut ident) => {
-                ident.set_span(ident.span().resolved_at(span));
+                ident.set_span(ident.span().resolved_at(span).located_at(span));
                 TokenTree::Ident(ident)
             }
             TokenTree::Group(group) => {
