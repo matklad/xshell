@@ -42,6 +42,14 @@ pub fn cp(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {
 }
 fn _cp(src: &Path, dst: &Path) -> Result<()> {
     let _guard = gsl::read();
+    let mut _tmp;
+    let mut dst = dst;
+    if dst.is_dir() {
+        if let Some(file_name) = src.file_name() {
+            _tmp = dst.join(file_name);
+            dst = &_tmp;
+        }
+    }
     with_path(src, std::fs::copy(src, dst)).map(|_size| ())
 }
 
