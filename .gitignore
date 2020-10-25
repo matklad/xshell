@@ -1,2 +1,4 @@
+mock_bin/echo
+mock_bin/date
 target/
 Cargo.lock

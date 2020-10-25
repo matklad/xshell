@@ -115,7 +115,7 @@ foo
 baz
 bar
 ";
-    let output = cmd!("sort").stdin(lines).read().unwrap();
+    let output = cmd!("sort").stdin(lines).read().unwrap().replace("\r\n", "\n");
     assert_eq!(
         output,
         "\
