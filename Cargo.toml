@@ -8,7 +8,7 @@ repository = "https://github.com/matklad/xshell"
 authors = ["Aleksey Kladov <aleksey.kladov@gmail.com>"]
 edition = "2018"
 
-exclude = [".github/", "bors.toml", "rustfmt.toml", "cbench"]
+exclude = [".github/", "bors.toml", "rustfmt.toml", "cbench", "mock_bin/"]
 
 [workspace]
 

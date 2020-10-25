@@ -1,2 +1,2 @@
-status = [ "Rust" ]
+status = [ "publish" ]
 delete_merged_branches = true

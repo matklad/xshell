@@ -4,6 +4,7 @@
 //! basic file manipulation utilities.
 //!
 //! ```
+//! # if cfg!(windows) { return Ok(()); }
 //! use xshell::{cmd, read_file};
 //!
 //! let name = "Julia";
