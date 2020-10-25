@@ -41,12 +41,8 @@
 //!
 //! ```
 //! # use xshell::cmd;
-//! if cfg!(target_os = "macos") {
-//!     let output = cmd!("date").read()?;
-//! } else {
-//!     let output = cmd!("date --iso").read()?;
-//!     assert!(output.chars().all(|c| "01234567890-".contains(c)));
-//! }
+//! let output = cmd!("date --iso").read()?;
+//! assert!(output.chars().all(|c| "01234567890-".contains(c)));
 //! # Ok::<(), xshell::Error>(())
 //! ```
 //!
