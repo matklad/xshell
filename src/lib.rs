@@ -257,7 +257,7 @@ pub use xshell_macros::__cmd;
 pub use crate::{
     env::{pushd, pushenv, Pushd, Pushenv},
     error::{Error, Result},
-    fs::{cp, cwd, mkdir_p, read_dir, read_file, rm_rf, write_file},
+    fs::{cp, cwd, mkdir_p, mktemp_d, read_dir, read_file, rm_rf, write_file, TempDir},
 };
 
 #[macro_export]
