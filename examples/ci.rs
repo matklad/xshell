@@ -50,7 +50,7 @@ fn test() -> Result<()> {
 
     {
         let _s = Section::new("TEST");
-        cmd!("cargo test --workspace -- --test-threads 1").run()?;
+        cmd!("cargo test --workspace").run()?;
     }
     Ok(())
 }
