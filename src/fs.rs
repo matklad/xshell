@@ -72,7 +72,6 @@ pub fn cwd() -> Result<PathBuf> {
 pub fn mktemp_d() -> Result<TempDir> {
     let _guard = gsl::read();
     let base = std::env::temp_dir();
-    let pid = std::process::id();
     mkdir_p(&base)?;
 
     static CNT: AtomicUsize = AtomicUsize::new(0);
@@ -80,7 +79,7 @@ pub fn mktemp_d() -> Result<TempDir> {
     let mut n_try = 0u32;
     loop {
         let cnt = CNT.fetch_add(1, Ordering::Relaxed);
-        let path = base.join(format!("{}_{}", pid, cnt));
+        let path = base.join(format!("xshell-tmp-dir-{}", cnt));
         match std::fs::create_dir(&path) {
             Ok(()) => return Ok(TempDir { path }),
             Err(io_err) if n_try == 1024 => return Err(fs_err(path, io_err)),
