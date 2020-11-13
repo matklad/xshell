@@ -72,6 +72,7 @@ pub fn cwd() -> Result<PathBuf> {
 pub fn mktemp_d() -> Result<TempDir> {
     let _guard = gsl::read();
     let base = std::env::temp_dir();
+
     mkdir_p(&base)?;
 
     static CNT: AtomicUsize = AtomicUsize::new(0);
