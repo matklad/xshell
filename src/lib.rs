@@ -277,6 +277,7 @@ pub struct Cmd {
     args: Vec<OsString>,
     stdin_contents: Option<Vec<u8>>,
     ignore_status: bool,
+    echo_cmd: bool,
 }
 
 impl fmt::Display for Cmd {
@@ -312,6 +313,7 @@ impl Cmd {
             args: vec![program.as_os_str().to_owned()],
             stdin_contents: None,
             ignore_status: false,
+            echo_cmd: true,
         }
     }
 
@@ -353,6 +355,11 @@ impl Cmd {
         self.stdin_contents = Some(stdin.to_vec());
     }
 
+    pub fn dont_echo_cmd(mut self) -> Cmd {
+        self.echo_cmd = false;
+        self
+    }
+
     pub fn read(self) -> Result<String> {
         self.read_stream(false)
     }
@@ -371,7 +378,9 @@ impl Cmd {
 
     pub fn run(self) -> Result<()> {
         let _guard = gsl::read();
-        println!("$ {}", self);
+        if self.echo_cmd {
+            println!("$ {}", self);
+        }
         match self.command().status() {
             Ok(status) if status.success() || self.ignore_status => Ok(()),
             Ok(status) => Err(CmdErrorKind::NonZeroStatus(status).err(self)),
