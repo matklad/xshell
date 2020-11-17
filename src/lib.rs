@@ -282,17 +282,21 @@ pub struct Cmd {
 
 impl fmt::Display for Cmd {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut space = "";
-        for arg in &self.args {
-            write!(f, "{}", space)?;
-            space = " ";
+        if self.echo_cmd {
+            let mut space = "";
+            for arg in &self.args {
+                write!(f, "{}", space)?;
+                space = " ";
 
-            let arg = arg.to_string_lossy();
-            if arg.chars().any(|it| it.is_ascii_whitespace()) {
-                write!(f, "\"{}\"", arg.escape_default())?
-            } else {
-                write!(f, "{}", arg)?
-            };
+                let arg = arg.to_string_lossy();
+                if arg.chars().any(|it| it.is_ascii_whitespace()) {
+                    write!(f, "\"{}\"", arg.escape_default())?
+                } else {
+                    write!(f, "{}", arg)?
+                };
+            }
+        } else {
+            write!(f, "<hidden>")?;
         }
         Ok(())
     }
@@ -355,8 +359,8 @@ impl Cmd {
         self.stdin_contents = Some(stdin.to_vec());
     }
 
-    pub fn dont_echo_cmd(mut self) -> Cmd {
-        self.echo_cmd = false;
+    pub fn echo_cmd(mut self, echo: bool) -> Cmd {
+        self.echo_cmd = echo;
         self
     }
 
@@ -378,9 +382,7 @@ impl Cmd {
 
     pub fn run(self) -> Result<()> {
         let _guard = gsl::read();
-        if self.echo_cmd {
-            println!("$ {}", self);
-        }
+        println!("$ {}", self);
         match self.command().status() {
             Ok(status) if status.success() || self.ignore_status => Ok(()),
             Ok(status) => Err(CmdErrorKind::NonZeroStatus(status).err(self)),
