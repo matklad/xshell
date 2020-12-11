@@ -328,7 +328,8 @@ fn compile_bench() -> Duration {
 fn versions_match() {
     let read_version = |path: &str| {
         let text = read_file(path).unwrap();
-        text.lines().find(|it| it.starts_with("version =")).unwrap().trim().to_string()
+        let vers = text.lines().find(|it| it.starts_with("version =")).unwrap();
+        vers.trim_start_matches("version =").trim().trim_matches('"').to_string()
     };
 
     let v1 = read_version("./Cargo.toml");
@@ -336,7 +337,7 @@ fn versions_match() {
     assert_eq!(v1, v2);
 
     let cargo_toml = read_file("./Cargo.toml").unwrap();
-    let dep = format!("xshell-macros = {{ {}", v1);
+    let dep = format!("xshell-macros = {{ version = \"={}\",", v1);
     assert!(cargo_toml.contains(&dep));
 }
 
