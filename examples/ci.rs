@@ -79,33 +79,31 @@ fn publish() -> Result<()> {
 
     let current_branch = cmd!("git branch --show-current").read()?;
 
-    let dry_run = if tag_exists || &current_branch != "master" { Some("--dry-run") } else { None };
-
-    if dry_run.is_none() {
+    if current_branch == "master" && !tag_exists {
         cmd!("git tag v{version}").run()?;
-    }
 
-    let token = env::var("CRATES_IO_TOKEN").unwrap_or("DUMMY_TOKEN".to_string());
-    {
-        let _p = pushd("xshell-macros")?;
-        cmd!("cargo publish --token {token} {dry_run...}").run()?;
-        for _ in 0..100 {
-            thread::sleep(Duration::from_secs(3));
-            let err_msg =
-                cmd!("cargo install xshell-macros --version {version} --bin non-existing")
-                    .ignore_status()
-                    .read_stderr()?;
+        let token = env::var("CRATES_IO_TOKEN").unwrap_or("DUMMY_TOKEN".to_string());
+        {
+            let _p = pushd("xshell-macros")?;
+            cmd!("cargo publish --token {token}").run()?;
+            for _ in 0..100 {
+                thread::sleep(Duration::from_secs(3));
+                let err_msg =
+                    cmd!("cargo install xshell-macros --version {version} --bin non-existing")
+                        .ignore_status()
+                        .read_stderr()?;
 
-            let not_found = err_msg.contains("could not find ");
-            let tried_installing = err_msg.contains("Installing");
-            assert!(not_found ^ tried_installing);
-            if tried_installing {
-                break;
+                let not_found = err_msg.contains("could not find ");
+                let tried_installing = err_msg.contains("Installing");
+                assert!(not_found ^ tried_installing);
+                if tried_installing {
+                    break;
+                }
             }
         }
+        cmd!("cargo publish --token {token}").run()?;
+        cmd!("git push --tags").run()?;
     }
-    cmd!("cargo publish --token {token} {dry_run...}").run()?;
-    cmd!("git push --tags {dry_run...}").run()?;
     Ok(())
 }
 
