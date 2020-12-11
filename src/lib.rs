@@ -361,6 +361,14 @@ impl Cmd {
         self.read_stream(true)
     }
 
+    pub fn output(self) -> Result<Output> {
+        match self.output_impl(true, true) {
+            Ok(output) if output.status.success() || self.ignore_status => Ok(output),
+            Ok(output) => Err(CmdErrorKind::NonZeroStatus(output.status).err(self)),
+            Err(io_err) => Err(CmdErrorKind::Io(io_err).err(self)),
+        }
+    }
+
     pub fn run(self) -> Result<()> {
         let _guard = gsl::read();
         println!("$ {}", self);
@@ -372,7 +380,8 @@ impl Cmd {
     }
 
     fn read_stream(self, read_stderr: bool) -> Result<String> {
-        match self.output() {
+        let read_stdout = !read_stderr;
+        match self.output_impl(read_stdout, read_stderr) {
             Ok(output) if output.status.success() || self.ignore_status => {
                 let stream = if read_stderr { output.stderr } else { output.stdout };
                 let mut stream = String::from_utf8(stream)
@@ -392,7 +401,7 @@ impl Cmd {
         }
     }
 
-    fn output(&self) -> io::Result<Output> {
+    fn output_impl(&self, read_stdout: bool, read_stderr: bool) -> io::Result<Output> {
         let mut child = {
             let _guard = gsl::read();
             self.command()
@@ -400,8 +409,8 @@ impl Cmd {
                     Some(_) => Stdio::piped(),
                     None => Stdio::null(),
                 })
-                .stderr(Stdio::piped())
-                .stdout(Stdio::piped())
+                .stdout(if read_stdout { Stdio::piped() } else { Stdio::inherit() })
+                .stderr(if read_stderr { Stdio::piped() } else { Stdio::inherit() })
                 .spawn()?
         };
 
