@@ -295,8 +295,6 @@ impl fmt::Display for Cmd {
                     write!(f, "{}", arg)?
                 };
             }
-        } else {
-            write!(f, "<hidden>")?;
         }
         Ok(())
     }
