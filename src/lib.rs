@@ -295,6 +295,8 @@ impl fmt::Display for Cmd {
                     write!(f, "{}", arg)?
                 };
             }
+        } else {
+            write!(f, "<hidden>")?;
         }
         Ok(())
     }
@@ -380,7 +382,9 @@ impl Cmd {
 
     pub fn run(self) -> Result<()> {
         let _guard = gsl::read();
-        println!("$ {}", self);
+        if self.echo_cmd {
+            println!("$ {}", self);
+        }
         match self.command().status() {
             Ok(status) if status.success() || self.ignore_status => Ok(()),
             Ok(status) => Err(CmdErrorKind::NonZeroStatus(status).err(self)),
