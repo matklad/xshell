@@ -278,11 +278,12 @@ pub struct Cmd {
     stdin_contents: Option<Vec<u8>>,
     ignore_status: bool,
     echo_cmd: bool,
+    secret: bool,
 }
 
 impl fmt::Display for Cmd {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.echo_cmd {
+        if !self.secret {
             let mut space = "";
             for arg in &self.args {
                 write!(f, "{}", space)?;
@@ -296,7 +297,7 @@ impl fmt::Display for Cmd {
                 };
             }
         } else {
-            write!(f, "<hidden>")?;
+            write!(f, "<secret>")?;
         }
         Ok(())
     }
@@ -318,6 +319,7 @@ impl Cmd {
             stdin_contents: None,
             ignore_status: false,
             echo_cmd: true,
+            secret: false,
         }
     }
 
@@ -361,6 +363,11 @@ impl Cmd {
 
     pub fn echo_cmd(mut self, echo: bool) -> Cmd {
         self.echo_cmd = echo;
+        self
+    }
+
+    pub fn secret(mut self, secret: bool) -> Cmd {
+        self.secret = secret;
         self
     }
 
