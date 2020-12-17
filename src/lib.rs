@@ -277,21 +277,27 @@ pub struct Cmd {
     args: Vec<OsString>,
     stdin_contents: Option<Vec<u8>>,
     ignore_status: bool,
+    echo_cmd: bool,
+    secret: bool,
 }
 
 impl fmt::Display for Cmd {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut space = "";
-        for arg in &self.args {
-            write!(f, "{}", space)?;
-            space = " ";
+        if !self.secret {
+            let mut space = "";
+            for arg in &self.args {
+                write!(f, "{}", space)?;
+                space = " ";
 
-            let arg = arg.to_string_lossy();
-            if arg.chars().any(|it| it.is_ascii_whitespace()) {
-                write!(f, "\"{}\"", arg.escape_default())?
-            } else {
-                write!(f, "{}", arg)?
-            };
+                let arg = arg.to_string_lossy();
+                if arg.chars().any(|it| it.is_ascii_whitespace()) {
+                    write!(f, "\"{}\"", arg.escape_default())?
+                } else {
+                    write!(f, "{}", arg)?
+                };
+            }
+        } else {
+            write!(f, "<secret>")?;
         }
         Ok(())
     }
@@ -312,6 +318,8 @@ impl Cmd {
             args: vec![program.as_os_str().to_owned()],
             stdin_contents: None,
             ignore_status: false,
+            echo_cmd: true,
+            secret: false,
         }
     }
 
@@ -353,6 +361,16 @@ impl Cmd {
         self.stdin_contents = Some(stdin.to_vec());
     }
 
+    pub fn echo_cmd(mut self, echo: bool) -> Cmd {
+        self.echo_cmd = echo;
+        self
+    }
+
+    pub fn secret(mut self, secret: bool) -> Cmd {
+        self.secret = secret;
+        self
+    }
+
     pub fn read(self) -> Result<String> {
         self.read_stream(false)
     }
@@ -371,7 +389,9 @@ impl Cmd {
 
     pub fn run(self) -> Result<()> {
         let _guard = gsl::read();
-        println!("$ {}", self);
+        if self.echo_cmd {
+            println!("$ {}", self);
+        }
         match self.command().status() {
             Ok(status) if status.success() || self.ignore_status => Ok(()),
             Ok(status) => Err(CmdErrorKind::NonZeroStatus(status).err(self)),
