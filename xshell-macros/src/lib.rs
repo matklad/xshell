@@ -1,4 +1,7 @@
-extern crate proc_macro;
+//! Private implementation details of `xshell`.
+
+#![deny(missing_debug_implementations)]
+#![deny(rust_2018_idioms)]
 
 use std::iter;
 
