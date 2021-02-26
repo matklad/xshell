@@ -5,22 +5,36 @@ use std::{
 
 use crate::{cwd, error::fs_err, gsl, Result};
 
+/// Changes the current directory to `dir`.
+///
+/// Returns a [`Pushd`] value that, when dropped, will reset the current
+/// directory to whatever it was right before the call to `pushd` that produced
+/// that `Pushd`.
 pub fn pushd(dir: impl AsRef<Path>) -> Result<Pushd> {
     Pushd::new(dir.as_ref())
 }
 
+/// The result of calling a successful [`pushd`].
 #[must_use]
+#[derive(Debug)]
 pub struct Pushd {
     _guard: gsl::Guard,
     prev_dir: PathBuf,
     dir: PathBuf,
 }
 
-pub fn pushenv(k: impl AsRef<OsStr>, v: impl AsRef<OsStr>) -> Pushenv {
-    Pushenv::new(k.as_ref(), v.as_ref())
+/// Sets the environment variable `key` to have value `val`.
+///
+/// Returns a [`Pushenv`] value that, when dropped, will reset the the
+/// environment variable `key` to whatever value it had right before the call to
+/// `pushenv` that produced that `Pushenv`.
+pub fn pushenv(key: impl AsRef<OsStr>, val: impl AsRef<OsStr>) -> Pushenv {
+    Pushenv::new(key.as_ref(), val.as_ref())
 }
 
+/// The result of calling a successful [`pushenv`].
 #[must_use]
+#[derive(Debug)]
 pub struct Pushenv {
     _guard: gsl::Guard,
     key: OsString,

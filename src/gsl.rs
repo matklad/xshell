@@ -7,6 +7,7 @@ use std::{
     sync::{RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
+#[derive(Debug)]
 pub(crate) struct Guard {
     r_guard: Option<RwLockReadGuard<'static, ()>>,
     w_guard: Option<RwLockWriteGuard<'static, ()>>,
