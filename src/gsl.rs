@@ -8,9 +8,9 @@ use std::{
     sync::{RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
-/// If, on the same thread, there are multiple calls to `read` or `write`, then
-/// the `Guard`s returned should be dropped in the reverse order that they were
-/// acquired.
+/// If, on the same thread, there are multiple calls to [`read`] or [`write`],
+/// then the `Guard`s returned should be dropped in the reverse order that they
+/// were acquired.
 ///
 /// If this is violated, e.g. in
 ///
