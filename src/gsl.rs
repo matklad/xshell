@@ -92,3 +92,26 @@ impl Drop for Guard {
         }
     }
 }
+
+#[test]
+fn read_write_read() {
+    eprintln!("get r1");
+    let r1 = read();
+    eprintln!("got r1");
+    let h = std::thread::spawn(|| {
+        eprintln!("get w1");
+        let w1 = write();
+        eprintln!("got w1");
+        drop(w1);
+        eprintln!("gave w1");
+    });
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    eprintln!("get r2");
+    let r2 = read();
+    eprintln!("got r2");
+    drop(r1);
+    eprintln!("gave r1");
+    drop(r2);
+    eprintln!("gave r2");
+    h.join().unwrap();
+}
