@@ -143,6 +143,12 @@ fn read_write_read() {
 }
 
 #[test]
+fn write_read_same_thread() {
+    let _w = write();
+    let _r = read();
+}
+
+#[test]
 #[should_panic(
     expected = "calling write() with an active read guard on the same thread would deadlock"
 )]
