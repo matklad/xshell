@@ -18,18 +18,23 @@ enum Repr {
 }
 
 pub(crate) fn write() -> Guard {
-    if matches!(CACHE.with(Cell::get), Cache::Write) {
-        // this thread (and only this thread) can already write. don't try to
-        // acquire another write guard.
-        return Guard(None);
+    match CACHE.with(Cell::get) {
+        Cache::Write => {
+            // this thread (and only this thread) can already write. don't try to
+            // acquire another write guard.
+            Guard(None)
+        }
+        Cache::Read(readers) => {
+            assert_eq!(
+                readers, 0,
+                "calling write() with an active read guard on the same thread would deadlock"
+            );
+            let w_guard = static_rw_lock().write().unwrap_or_else(|err| err.into_inner());
+            // note that we have a writer.
+            CACHE.with(|it| it.set(Cache::Write));
+            Guard(Some(Repr::Write(w_guard)))
+        }
     }
-    // this thread has no writers. if it has readers, this will deadlock.
-    let w_guard = static_rw_lock().write().unwrap_or_else(|err| err.into_inner());
-    // if we got to here, we must not have any readers.
-    assert_eq!(CACHE.with(Cell::get), Cache::Read(0));
-    // note that we have a writer.
-    CACHE.with(|it| it.set(Cache::Write));
-    Guard(Some(Repr::Write(w_guard)))
 }
 
 pub(crate) fn read() -> Guard {
@@ -68,7 +73,7 @@ fn static_rw_lock() -> &'static RwLock<()> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 enum Cache {
     Read(usize),
     Write,
@@ -115,4 +120,13 @@ fn read_write_read() {
     drop(r2);
     eprintln!("gave r2");
     h.join().unwrap();
+}
+
+#[test]
+#[should_panic(
+    expected = "calling write() with an active read guard on the same thread would deadlock"
+)]
+fn read_write_same_thread() {
+    let _r = read();
+    let _w = write();
 }
