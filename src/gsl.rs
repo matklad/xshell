@@ -1,4 +1,5 @@
-//! Global shell lock
+//! Global shell lock.
+
 use std::{
     cell::Cell,
     mem::MaybeUninit,
@@ -25,7 +26,7 @@ pub(crate) fn write() -> Guard {
     // this thread has no writers. if it has readers, this will deadlock.
     let w_guard = static_rw_lock().write().unwrap_or_else(|err| err.into_inner());
     // if we got to here, we must not have any readers.
-    assert!(matches!(CACHE.with(Cell::get), Cache::Read(0)));
+    assert_eq!(CACHE.with(Cell::get), Cache::Read(0));
     // note that we have a writer.
     CACHE.with(|it| it.set(Cache::Write));
     Guard(Some(Repr::Write(w_guard)))
@@ -67,7 +68,7 @@ fn static_rw_lock() -> &'static RwLock<()> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Cache {
     Read(usize),
     Write,
