@@ -90,7 +90,7 @@ fn static_rw_lock() -> &'static RwLock<()> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Cache {
     Read(usize),
     Write,
@@ -106,11 +106,14 @@ impl Drop for Guard {
             Some(Repr::Read(_)) => CACHE.with(|it| {
                 let n = match it.get() {
                     Cache::Read(n) => n,
-                    Cache::Write => unreachable!(),
+                    Cache::Write => unreachable!("had both a reader and a writer"),
                 };
                 it.set(Cache::Read(n - 1));
             }),
-            Some(Repr::Write(_)) => CACHE.with(|it| it.set(Cache::Read(0))),
+            Some(Repr::Write(_)) => CACHE.with(|it| {
+                assert_eq!(it.get(), Cache::Write);
+                it.set(Cache::Read(0))
+            }),
             None => {}
         }
     }
