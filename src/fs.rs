@@ -1,4 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 use crate::{error::fs_err, gsl, Result};
 
@@ -86,6 +89,30 @@ pub fn cwd() -> Result<PathBuf> {
     with_path(&Path::new("."), std::env::current_dir())
 }
 
+/// Creates an empty, world-readable, temporary directory.
+///
+/// Returns a [`TempDir`] value that provides the path of this temporary
+/// directory. When dropped, the temporary directory and all of its contents
+/// will be removed.
+pub fn mktemp_d() -> Result<TempDir> {
+    let _guard = gsl::read();
+    let base = std::env::temp_dir();
+    mkdir_p(&base)?;
+
+    static CNT: AtomicUsize = AtomicUsize::new(0);
+
+    let mut n_try = 0u32;
+    loop {
+        let cnt = CNT.fetch_add(1, Ordering::Relaxed);
+        let path = base.join(format!("xshell-tmp-dir-{}", cnt));
+        match std::fs::create_dir(&path) {
+            Ok(()) => return Ok(TempDir { path }),
+            Err(io_err) if n_try == 1024 => return Err(fs_err(path, io_err)),
+            Err(_) => n_try += 1,
+        }
+    }
+}
+
 fn with_path<T>(path: &Path, res: Result<T, std::io::Error>) -> Result<T> {
     res.map_err(|io_err| fs_err(path.to_path_buf(), io_err))
 }
@@ -114,4 +141,23 @@ fn read_dir_aux(path: &Path) -> std::io::Result<Vec<PathBuf>> {
     }
     res.sort();
     Ok(res)
+}
+
+/// A temporary directory.
+#[derive(Debug)]
+pub struct TempDir {
+    path: PathBuf,
+}
+
+impl TempDir {
+    /// Returns the path of this temporary directory.
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl Drop for TempDir {
+    fn drop(&mut self) {
+        rm_rf(&self.path).unwrap()
+    }
 }

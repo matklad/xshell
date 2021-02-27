@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.9
+
+- `mktemp_d` creates an (insecure, world readable) temporary directory.
+- `cp(foo, bar)` copies `foo` _into_ `bar`, if `bar` is an existing directory.
+
 ## 0.1.8
 
 - Add option to not echo command at all
