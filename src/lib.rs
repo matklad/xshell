@@ -177,7 +177,7 @@
 //!
 //! # Implementation details
 //!
-//! The design is heavily inspired by the Juila language:
+//! The design is heavily inspired by the Julia language:
 //!
 //! * [Shelling Out Sucks](https://julialang.org/blog/2012/03/shelling-out-sucks/)
 //! * [Put This In Your Pipe](https://julialang.org/blog/2013/04/put-this-in-your-pipe/)
