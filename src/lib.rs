@@ -42,7 +42,7 @@
 //!
 //! ```
 //! # use xshell::cmd;
-//! let output = cmd!("date --iso").read()?;
+//! let output = cmd!("date +%Y-%m-%d").read()?;
 //! assert!(output.chars().all(|c| "01234567890-".contains(c)));
 //! # Ok::<(), xshell::Error>(())
 //! ```
@@ -190,7 +190,7 @@
 //!
 //! The `cmd!` macro uses a simple proc-macro internally. It doesn't depend on
 //! helper libraries, so the fixed-cost impact on compile times is moderate.
-//! Compiling a trivial program with `cmd!("date --iso")` takes one second.
+//! Compiling a trivial program with `cmd!("date +%Y-%m-%d")` takes one second.
 //! Equivalent program using only `std::process::Command` compiles in 0.25
 //! seconds.
 //!

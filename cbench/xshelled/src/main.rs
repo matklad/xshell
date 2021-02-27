@@ -1,6 +1,6 @@
 use xshell::cmd;
 
 fn main() {
-    let date = cmd!("date --iso").read().unwrap();
+    let date = cmd!("date +%Y-%m-%d").read().unwrap();
     print!("today is: {}\n", date)
 }
