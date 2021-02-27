@@ -46,9 +46,14 @@ fn _mkdir_p(path: &Path) -> Result<()> {
     with_path(path, std::fs::create_dir_all(path))
 }
 
-/// Copies the file at `src` into the file at `dst`.
+/// Copies `src` into `dst`.
 ///
-/// `dst` must be the path to a file. It will be created if it does not exist.
+/// `src` must be a file, but `dst` need not be. If `dst` is an existing
+/// directory, `src` will be copied into a file in the `dst` directory whose
+/// name is same as that of `src`.
+///
+/// Otherwise, `dst` is a file or does not exist, and `src` will be copied into
+/// it.
 pub fn cp(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {
     _cp(src.as_ref(), dst.as_ref())
 }
