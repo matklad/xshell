@@ -17,22 +17,45 @@ enum Repr {
 }
 
 pub(crate) fn write() -> Guard {
-    if LOCKED.with(|it| it.get()) {
+    if matches!(CACHE.with(Cell::get), Cache::Write) {
+        // this thread (and only this thread) can already write. don't try to
+        // acquire another write guard again.
         return Guard(None);
     }
-
+    // this thread has no writers. if it has readers, this will deadlock.
     let w_guard = static_rw_lock().write().unwrap_or_else(|err| err.into_inner());
-    LOCKED.with(|it| it.set(true));
+    // if we got to here, we must not have any readers.
+    assert!(matches!(CACHE.with(Cell::get), Cache::Read(0)));
+    // note that we have a writer.
+    CACHE.with(|it| it.set(Cache::Write));
     Guard(Some(Repr::Write(w_guard)))
 }
 
 pub(crate) fn read() -> Guard {
-    if LOCKED.with(|it| it.get()) {
-        return Guard(None);
+    match CACHE.with(Cell::get) {
+        Cache::Write => {
+            // this thread (and only this thread) can already write. it's safe
+            // to allow this thread to read as well, because we won't have
+            // concurrent reads and writes, because we're only working on this
+            // thread.
+            Guard(None)
+        }
+        Cache::Read(n) => {
+            if n == 0 {
+                // this thread has no readers or writers. try to acquire the
+                // lock for reading.
+                let r_guard = static_rw_lock().read().unwrap_or_else(|err| err.into_inner());
+                // note that we now have 1 reader.
+                CACHE.with(|it| it.set(Cache::Read(1)));
+                Guard(Some(Repr::Read(r_guard)))
+            } else {
+                // this thread already has a read guard. don't try to acquire
+                // one again. also, record that we have another reader.
+                CACHE.with(|it| it.set(Cache::Read(n + 1)));
+                Guard(None)
+            }
+        }
     }
-
-    let r_guard = static_rw_lock().read().unwrap_or_else(|err| err.into_inner());
-    Guard(Some(Repr::Read(r_guard)))
 }
 
 fn static_rw_lock() -> &'static RwLock<()> {
@@ -44,14 +67,28 @@ fn static_rw_lock() -> &'static RwLock<()> {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+enum Cache {
+    Read(usize),
+    Write,
+}
+
 thread_local! {
-    static LOCKED: Cell<bool> = Cell::new(false);
+    static CACHE: Cell<Cache> = Cell::new(Cache::Read(0));
 }
 
 impl Drop for Guard {
     fn drop(&mut self) {
-        if matches!(self.0, Some(Repr::Write(_))) {
-            LOCKED.with(|it| it.set(false))
+        match self.0 {
+            Some(Repr::Read(_)) => CACHE.with(|it| {
+                let n = match it.get() {
+                    Cache::Read(n) => n,
+                    Cache::Write => unreachable!(),
+                };
+                it.set(Cache::Read(n - 1));
+            }),
+            Some(Repr::Write(_)) => CACHE.with(|it| it.set(Cache::Read(0))),
+            None => {}
         }
     }
 }
