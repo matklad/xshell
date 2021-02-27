@@ -8,28 +8,31 @@ use std::{
 };
 
 #[derive(Debug)]
-pub(crate) struct Guard {
-    r_guard: Option<RwLockReadGuard<'static, ()>>,
-    w_guard: Option<RwLockWriteGuard<'static, ()>>,
+pub(crate) struct Guard(Option<Repr>);
+
+#[derive(Debug)]
+enum Repr {
+    Read(RwLockReadGuard<'static, ()>),
+    Write(RwLockWriteGuard<'static, ()>),
 }
 
 pub(crate) fn write() -> Guard {
     if LOCKED.with(|it| it.get()) {
-        return Guard { r_guard: None, w_guard: None };
+        return Guard(None);
     }
 
     let w_guard = static_rw_lock().write().unwrap_or_else(|err| err.into_inner());
     LOCKED.with(|it| it.set(true));
-    Guard { w_guard: Some(w_guard), r_guard: None }
+    Guard(Some(Repr::Write(w_guard)))
 }
 
 pub(crate) fn read() -> Guard {
     if LOCKED.with(|it| it.get()) {
-        return Guard { r_guard: None, w_guard: None };
+        return Guard(None);
     }
 
     let r_guard = static_rw_lock().read().unwrap_or_else(|err| err.into_inner());
-    Guard { w_guard: None, r_guard: Some(r_guard) }
+    Guard(Some(Repr::Read(r_guard)))
 }
 
 fn static_rw_lock() -> &'static RwLock<()> {
@@ -47,9 +50,8 @@ thread_local! {
 
 impl Drop for Guard {
     fn drop(&mut self) {
-        if self.w_guard.is_some() {
+        if matches!(self.0, Some(Repr::Write(_))) {
             LOCKED.with(|it| it.set(false))
         }
-        let _ = self.r_guard;
     }
 }
