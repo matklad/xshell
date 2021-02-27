@@ -112,7 +112,7 @@ impl Drop for Guard {
             }),
             Some(Repr::Write(_)) => CACHE.with(|it| {
                 assert_eq!(it.get(), Cache::Write);
-                it.set(Cache::Read(0))
+                it.set(Cache::Read(0));
             }),
             None => {}
         }
@@ -143,7 +143,7 @@ fn read_write_read() {
 }
 
 #[test]
-fn write_read_same_thread() {
+fn write_read() {
     let _w = write();
     let _r = read();
 }
@@ -152,7 +152,7 @@ fn write_read_same_thread() {
 #[should_panic(
     expected = "calling write() with an active read guard on the same thread would deadlock"
 )]
-fn read_write_same_thread() {
+fn read_write() {
     let _r = read();
     let _w = write();
 }
