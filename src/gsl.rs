@@ -20,7 +20,7 @@ enum Repr {
 pub(crate) fn write() -> Guard {
     if matches!(CACHE.with(Cell::get), Cache::Write) {
         // this thread (and only this thread) can already write. don't try to
-        // acquire another write guard again.
+        // acquire another write guard.
         return Guard(None);
     }
     // this thread has no writers. if it has readers, this will deadlock.
@@ -41,8 +41,8 @@ pub(crate) fn read() -> Guard {
             // thread.
             Guard(None)
         }
-        Cache::Read(n) => {
-            if n == 0 {
+        Cache::Read(readers) => {
+            if readers == 0 {
                 // this thread has no readers or writers. try to acquire the
                 // lock for reading.
                 let r_guard = static_rw_lock().read().unwrap_or_else(|err| err.into_inner());
@@ -50,9 +50,9 @@ pub(crate) fn read() -> Guard {
                 CACHE.with(|it| it.set(Cache::Read(1)));
                 Guard(Some(Repr::Read(r_guard)))
             } else {
-                // this thread already has a read guard. don't try to acquire
-                // one again. also, record that we have another reader.
-                CACHE.with(|it| it.set(Cache::Read(n + 1)));
+                // this thread can already read. don't try to acquire another
+                // read guard. also, note that we have another reader.
+                CACHE.with(|it| it.set(Cache::Read(readers + 1)));
                 Guard(None)
             }
         }
