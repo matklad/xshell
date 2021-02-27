@@ -8,6 +8,21 @@ use std::{
     sync::{RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
+/// If, on the same thread, there are multiple calls to `read` or `write`, then
+/// the `Guard`s returned should be dropped in the reverse order that they were
+/// acquired.
+///
+/// If this is violated, e.g. in
+///
+/// ```ignore
+/// let w1 = write();
+/// let _w2 = write();
+/// drop(w1);
+/// // try to use a global resource with write privileges
+/// ```
+///
+/// then things won't turn out well, because `_w2` doesn't actually contain a
+/// lock guard.
 #[derive(Debug)]
 pub(crate) struct Guard(Option<Repr>);
 
@@ -17,6 +32,7 @@ enum Repr {
     Write(RwLockWriteGuard<'static, ()>),
 }
 
+/// Returns a [`Guard`] for write access to global resources.
 pub(crate) fn write() -> Guard {
     match CACHE.with(Cell::get) {
         Cache::Write => {
@@ -37,6 +53,7 @@ pub(crate) fn write() -> Guard {
     }
 }
 
+/// Returns a [`Guard`] for read access to global resources.
 pub(crate) fn read() -> Guard {
     match CACHE.with(Cell::get) {
         Cache::Write => {
