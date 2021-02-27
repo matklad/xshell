@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.8
+
+- Add option to not echo command at all
+- Add option to censor command contents when echoing
+
 ## 0.1.6
 
 - `.read()` chomps `\r\n` on Windows.
