@@ -158,6 +158,6 @@ impl TempDir {
 
 impl Drop for TempDir {
     fn drop(&mut self) {
-        rm_rf(&self.path).unwrap()
+        let _ = rm_rf(&self.path);
     }
 }
