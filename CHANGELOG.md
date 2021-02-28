@@ -3,12 +3,18 @@
 ## 0.1.9
 
 - `mktemp_d` creates an (insecure, world readable) temporary directory.
-- `cp(foo, bar)` copies `foo` _into_ `bar`, if `bar` is an existing directory.
+- Fix cp docs
 
 ## 0.1.8
 
 - Add option to not echo command at all
 - Add option to censor command contents when echoing
+- Add docs
+
+## 0.1.7
+
+- `cp(foo, bar)` copies `foo` _into_ `bar`, if `bar` is an existing directory.
+- Tweak reading API
 
 ## 0.1.6
 
