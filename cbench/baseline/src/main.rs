@@ -2,7 +2,7 @@ use std::process::Command;
 
 fn main() {
     let mut cmd = Command::new("date");
-    cmd.arg("--iso");
+    cmd.arg("+%Y-%m-%d");
     let output = cmd.output().unwrap();
     if !output.status.success() {
         panic!("command `{:?}` failed: {}", cmd, output.status);

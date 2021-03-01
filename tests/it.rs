@@ -1,6 +1,6 @@
 use std::{ffi::OsStr, thread, time::Duration, time::Instant};
 
-use xshell::{cmd, cwd, mkdir_p, pushd, pushenv, read_file, rm_rf, write_file};
+use xshell::{cmd, cp, cwd, mkdir_p, mktemp_d, pushd, pushenv, read_file, rm_rf, write_file};
 
 #[test]
 fn smoke() {
@@ -206,6 +206,28 @@ fn test_pushenv_lock() {
 
     t1.join().unwrap();
     t2.join().unwrap();
+}
+
+#[test]
+fn test_cp() {
+    let path;
+    {
+        let tempdir = mktemp_d().unwrap();
+        path = tempdir.path().to_path_buf();
+        let foo = tempdir.path().join("foo.txt");
+        let bar = tempdir.path().join("bar.txt");
+        let dir = tempdir.path().join("dir");
+        write_file(&foo, "hello world").unwrap();
+        mkdir_p(&dir).unwrap();
+
+        cp(&foo, &bar).unwrap();
+        assert_eq!(read_file(&bar).unwrap(), "hello world");
+
+        cp(&foo, &dir).unwrap();
+        assert_eq!(read_file(&dir.join("foo.txt")).unwrap(), "hello world");
+        assert!(path.exists());
+    }
+    assert!(!path.exists());
 }
 
 fn check_failure(code: &str, err_msg: &str) {

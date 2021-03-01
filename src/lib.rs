@@ -42,7 +42,7 @@
 //!
 //! ```
 //! # use xshell::cmd;
-//! let output = cmd!("date --iso").read()?;
+//! let output = cmd!("date +%Y-%m-%d").read()?;
 //! assert!(output.chars().all(|c| "01234567890-".contains(c)));
 //! # Ok::<(), xshell::Error>(())
 //! ```
@@ -177,7 +177,7 @@
 //!
 //! # Implementation details
 //!
-//! The design is heavily inspired by the Juila language:
+//! The design is heavily inspired by the Julia language:
 //!
 //! * [Shelling Out Sucks](https://julialang.org/blog/2012/03/shelling-out-sucks/)
 //! * [Put This In Your Pipe](https://julialang.org/blog/2013/04/put-this-in-your-pipe/)
@@ -190,7 +190,7 @@
 //!
 //! The `cmd!` macro uses a simple proc-macro internally. It doesn't depend on
 //! helper libraries, so the fixed-cost impact on compile times is moderate.
-//! Compiling a trivial program with `cmd!("date --iso")` takes one second.
+//! Compiling a trivial program with `cmd!("date +%Y-%m-%d")` takes one second.
 //! Equivalent program using only `std::process::Command` compiles in 0.25
 //! seconds.
 //!
@@ -261,7 +261,7 @@ pub use xshell_macros::__cmd;
 pub use crate::{
     env::{pushd, pushenv, Pushd, Pushenv},
     error::{Error, Result},
-    fs::{cp, cwd, mkdir_p, read_dir, read_file, rm_rf, write_file},
+    fs::{cp, cwd, mkdir_p, mktemp_d, read_dir, read_file, rm_rf, write_file, TempDir},
 };
 
 /// Constructs a [`Cmd`] from the given string.

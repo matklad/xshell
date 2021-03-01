@@ -9,7 +9,7 @@ fn main() {
 
 fn try_main() -> io::Result<()> {
     let args = std::env::args().collect::<Vec<_>>();
-    if args != ["date", "--iso"] {
+    if args != ["date", "+%Y-%m-%d"] {
         return Err(io::Error::new(io::ErrorKind::Other, "invalid args"));
     }
     println!("1982-06-25");
