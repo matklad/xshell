@@ -154,6 +154,24 @@ fn pushd_parent_dir() {
 }
 
 #[test]
+fn cmd_current_dir() {
+    let tempdir = mktemp_d().unwrap();
+    let path = tempdir.path().to_path_buf();
+    let filename = "example.txt";
+    let file = path.join(filename);
+    let contents = "test 123";
+    write_file(&file, contents).unwrap();
+
+    // Kind of cludgey, but windows uses `type` not `cat` to print a file to stdout.
+    let read_contents =
+        if cfg!(windows) { cmd!("type {filename}") } else { cmd!("cat {filename}") }
+            .current_dir(path)
+            .read()
+            .unwrap();
+    assert_eq!(contents, read_contents);
+}
+
+#[test]
 fn test_pushd_lock() {
     let t1 = thread::spawn(|| {
         let _p = pushd("cbench").unwrap();
