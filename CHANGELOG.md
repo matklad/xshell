@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.10
+
+- `echo_cmd` output goes to stderr, not stdout
+
 ## 0.1.9
 
 - `mktemp_d` creates an (insecure, world readable) temporary directory.
