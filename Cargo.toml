@@ -13,4 +13,4 @@ exclude = [".github/", "bors.toml", "rustfmt.toml", "cbench", "mock_bin/"]
 [workspace]
 
 [dependencies]
-xshell-macros = { version = "=0.1.9", path = "./xshell-macros" }
+xshell-macros = { version = "=0.1.10", path = "./xshell-macros" }
