@@ -412,7 +412,7 @@ impl Cmd {
     pub fn run(self) -> Result<()> {
         let _guard = gsl::read();
         if self.echo_cmd {
-            println!("$ {}", self);
+            eprintln!("$ {}", self);
         }
         match self.command().status() {
             Ok(status) if status.success() || self.ignore_status => Ok(()),
