@@ -34,6 +34,9 @@ pub fn write_file(path: impl AsRef<Path>, contents: impl AsRef<[u8]>) -> Result<
     _write_file(path.as_ref(), contents.as_ref())
 }
 fn _write_file(path: &Path, contents: &[u8]) -> Result<()> {
+    if let Some(p) = path.parent() {
+        mkdir_p(p)?;
+    }
     let _guard = gsl::read();
     with_path(path, std::fs::write(path, contents))
 }
