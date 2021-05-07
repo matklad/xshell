@@ -28,8 +28,8 @@ fn _read_file(path: &Path) -> Result<String> {
     with_path(path, std::fs::read_to_string(path))
 }
 
-/// Writes the `contents` into the file at `path`, creating the file if it
-/// didn't exist already.
+/// Writes the `contents` into the file at `path`, creating the file (and the
+/// path to it) if it didn't exist already.
 pub fn write_file(path: impl AsRef<Path>, contents: impl AsRef<[u8]>) -> Result<()> {
     _write_file(path.as_ref(), contents.as_ref())
 }
