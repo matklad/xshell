@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.11
+
+- `write_file` now creates the intervening directory path if it doesn't exit
+
 ## 0.1.10
 
 - `echo_cmd` output goes to stderr, not stdout
