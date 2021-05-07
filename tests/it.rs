@@ -273,6 +273,14 @@ pub fn f() {{
 }
 
 #[test]
+fn write_makes_directory() {
+    let tempdir = mktemp_d().unwrap();
+    let folder = tempdir.path().join("some/nested/folder/structure");
+    write_file(folder.join(".gitinclude"), "").unwrap();
+    assert!(folder.exists());
+}
+
+#[test]
 fn test_compile_failures() {
     check_failure("cmd!(92)", "expected a plain string literal");
     check_failure(r#"cmd!(r"raw")"#, "expected a plain string literal");
