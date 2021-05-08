@@ -249,7 +249,7 @@ use std::{
     ffi::{OsStr, OsString},
     fmt, io,
     io::Write,
-    path::Path,
+    path::{Path, PathBuf},
     process::Output,
     process::Stdio,
 };
@@ -285,6 +285,7 @@ pub struct Cmd {
     ignore_status: bool,
     echo_cmd: bool,
     secret: bool,
+    dir: Option<PathBuf>,
 }
 
 impl fmt::Display for Cmd {
@@ -327,6 +328,7 @@ impl Cmd {
             ignore_status: false,
             echo_cmd: true,
             secret: false,
+            dir: None,
         }
     }
 
@@ -372,6 +374,15 @@ impl Cmd {
     }
     fn _stdin(&mut self, stdin: &[u8]) {
         self.stdin_contents = Some(stdin.to_vec());
+    }
+
+    /// Returns a `Cmd` that will execute in the provided directory.
+    pub fn current_dir(mut self, dir: impl AsRef<Path>) -> Cmd {
+        self._current_dir(dir.as_ref());
+        self
+    }
+    fn _current_dir(&mut self, dir: &Path) {
+        self.dir = Some(dir.to_owned());
     }
 
     /// Returns a `Cmd` that echoes itself (or not) as specified.
@@ -467,6 +478,9 @@ impl Cmd {
     fn command(&self) -> std::process::Command {
         let mut res = std::process::Command::new(&self.args[0]);
         res.args(&self.args[1..]);
+        if let Some(dir) = self.dir.as_ref() {
+            res.current_dir(dir);
+        }
         res
     }
 }
