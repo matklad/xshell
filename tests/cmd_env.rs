@@ -76,7 +76,7 @@ fn assert_env(echo_env_cmd: xshell::Cmd, want_env: &[(&str, Option<&str>)]) {
         .lines()
         .filter(|line| !line.is_empty())
         .map(|line| {
-            let (key, val) = line.split_once('=').unwrap_or_else(|| {
+            let (key, val) = split_once(line, '=').unwrap_or_else(|| {
                 panic!("failed to parse line from `echo_env` output: {:?}", line)
             });
             (key.to_owned(), val.to_owned())
@@ -152,4 +152,10 @@ fn maybe_compile_mock_bin(cmd: &str) {
     cmd!("{rustc} {cmd}.rs").run().unwrap();
     let bin_path = bin_path.canonicalize().unwrap_or_else(|_| bin_path.to_owned());
     assert!(bin_path.exists(), "After compiling, {} still doesn't exist", bin_path.display(),);
+}
+
+// Remove when bumping MSRV to 1.52.0
+fn split_once(line: &str, arg: char) -> Option<(&str, &str)> {
+    let idx = line.find(arg)?;
+    Some((&line[..idx], &line[idx + arg.len_utf8()..]))
 }
