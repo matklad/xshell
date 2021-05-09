@@ -1,3 +1,5 @@
+mod env;
+
 use std::{ffi::OsStr, thread, time::Duration, time::Instant};
 
 use xshell::{cmd, cp, cwd, mkdir_p, mktemp_d, pushd, pushenv, read_file, rm_rf, write_file};
