@@ -285,6 +285,7 @@ pub struct Cmd {
     ignore_status: bool,
     echo_cmd: bool,
     secret: bool,
+    env_changes: Vec<EnvChange>,
 }
 
 impl fmt::Display for Cmd {
@@ -327,6 +328,7 @@ impl Cmd {
             ignore_status: false,
             echo_cmd: true,
             secret: false,
+            env_changes: vec![],
         }
     }
 
@@ -348,6 +350,53 @@ impl Cmd {
 
     fn _arg(&mut self, arg: &OsStr) {
         self.args.push(arg.to_owned())
+    }
+
+    /// Equivalent to [`std::process::Command::env`].
+    pub fn env<K, V>(mut self, key: K, val: V) -> Cmd
+    where
+        K: AsRef<OsStr>,
+        V: AsRef<OsStr>,
+    {
+        self._env_set(key.as_ref(), val.as_ref());
+        self
+    }
+
+    fn _env_set(&mut self, key: &OsStr, val: &OsStr) {
+        self.env_changes.push(EnvChange::Set(key.to_owned(), val.to_owned()));
+    }
+
+    /// Equivalent to [`std::process::Command::envs`].
+    ///
+    /// Note: This does not replace the child process's environment, unless you
+    /// call [`Cmd::env_clear`] first.
+    pub fn envs<I, K, V>(mut self, vars: I) -> Cmd
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: AsRef<OsStr>,
+        V: AsRef<OsStr>,
+    {
+        vars.into_iter().for_each(|(k, v)| self._env_set(k.as_ref(), v.as_ref()));
+        self
+    }
+
+    /// Equivalent to [`std::process::Command::env_remove`].
+    pub fn env_remove<K>(mut self, key: K) -> Cmd
+    where
+        K: AsRef<OsStr>,
+    {
+        self._env_remove(key.as_ref());
+        self
+    }
+
+    fn _env_remove(&mut self, key: &OsStr) {
+        self.env_changes.push(EnvChange::Remove(key.to_owned()));
+    }
+
+    /// Equivalent to [`std::process::Command::env_clear`].
+    pub fn env_clear(mut self) -> Cmd {
+        self.env_changes.push(EnvChange::Clear);
+        self
     }
 
     #[doc(hidden)]
@@ -467,6 +516,28 @@ impl Cmd {
     fn command(&self) -> std::process::Command {
         let mut res = std::process::Command::new(&self.args[0]);
         res.args(&self.args[1..]);
+        self.apply_env(&mut res);
         res
     }
+
+    fn apply_env(&self, cmd: &mut std::process::Command) {
+        for change in &self.env_changes {
+            match change {
+                EnvChange::Clear => cmd.env_clear(),
+                EnvChange::Remove(key) => cmd.env_remove(key),
+                EnvChange::Set(key, val) => cmd.env(key, val),
+            };
+        }
+    }
+}
+
+// We just store a list of functions to call on the `Command` — the alternative
+// would require mirroring the logic that `std::process::Command` (or rather
+// `sys_common::CommandEnvs`) uses, which is moderately complex, involves
+// special-casing `PATH`, and plausbly could change.
+#[derive(Debug)]
+enum EnvChange {
+    Set(OsString, OsString),
+    Remove(OsString),
+    Clear,
 }
