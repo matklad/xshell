@@ -2,10 +2,14 @@ mod env;
 
 use std::{ffi::OsStr, thread, time::Duration, time::Instant};
 
-use xshell::{cmd, cp, cwd, mkdir_p, mktemp_d, pushd, pushenv, read_file, rm_rf, write_file};
+use xshell::{
+    cmd, cp, cwd, mkdir_p, mktemp_d, pushd, pushenv, read_dir, read_file, rm_rf, write_file,
+};
 
 #[test]
 fn smoke() {
+    setup();
+
     let pwd = "lol";
     let cmd = cmd!("echo 'hello '{pwd}");
     println!("{}", cmd);
@@ -13,6 +17,8 @@ fn smoke() {
 
 #[test]
 fn multiline() {
+    setup();
+
     let output = cmd!(
         "
         echo hello
@@ -25,6 +31,8 @@ fn multiline() {
 
 #[test]
 fn interpolation() {
+    setup();
+
     let hello = "hello";
     let output = cmd!("echo {hello}").read().unwrap();
     assert_eq!(output, "hello");
@@ -32,6 +40,8 @@ fn interpolation() {
 
 #[test]
 fn program_interpolation() {
+    setup();
+
     let echo = "echo";
     let output = cmd!("{echo} hello").read().unwrap();
     assert_eq!(output, "hello");
@@ -39,6 +49,8 @@ fn program_interpolation() {
 
 #[test]
 fn interpolation_concatenation() {
+    setup();
+
     let hello = "hello";
     let world = "world";
     let output = cmd!("echo {hello}-{world}").read().unwrap();
@@ -47,6 +59,8 @@ fn interpolation_concatenation() {
 
 #[test]
 fn interpolation_move() {
+    setup();
+
     let hello = "hello".to_string();
     let output1 = cmd!("echo {hello}").read().unwrap();
     let output2 = cmd!("echo {hello}").read().unwrap();
@@ -55,6 +69,8 @@ fn interpolation_move() {
 
 #[test]
 fn interpolation_spat() {
+    setup();
+
     let a = &["hello", "world"];
     let b: &[&OsStr] = &[];
     let c = &["!".to_string()];
@@ -64,6 +80,8 @@ fn interpolation_spat() {
 
 #[test]
 fn splat_idiom() {
+    setup();
+
     let check = if true { &["--", "--check"][..] } else { &[] };
     let cmd = cmd!("cargo fmt {check...}");
     assert_eq!(cmd.to_string(), "cargo fmt -- --check");
@@ -75,30 +93,40 @@ fn splat_idiom() {
 
 #[test]
 fn exit_status() {
+    setup();
+
     let err = cmd!("false").read().unwrap_err();
     assert_eq!(err.to_string(), "command `false` failed, exit code: 1");
 }
 
 #[test]
 fn ignore_status() {
+    setup();
+
     let output = cmd!("false").ignore_status().read().unwrap();
     assert_eq!(output, "");
 }
 
 #[test]
 fn read_stderr() {
+    setup();
+
     let output = cmd!("git fail").ignore_status().read_stderr().unwrap();
     assert!(output.contains("fail"));
 }
 
 #[test]
 fn unknown_command() {
+    setup();
+
     let err = cmd!("nope no way").read().unwrap_err();
     assert_eq!(err.to_string(), "command not found: `nope`");
 }
 
 #[test]
 fn args_with_spaces() {
+    setup();
+
     let hello_world = "hello world";
     let cmd = cmd!("echo {hello_world} 'hello world' hello world");
     assert_eq!(cmd.to_string(), r#"echo "hello world" "hello world" hello world"#)
@@ -106,12 +134,16 @@ fn args_with_spaces() {
 
 #[test]
 fn escape() {
+    setup();
+
     let output = cmd!("echo \\hello\\ '\\world\\'").read().unwrap();
     assert_eq!(output, r#"\hello\ \world\"#)
 }
 
 #[test]
 fn stdin_redirection() {
+    setup();
+
     let lines = "\
 foo
 baz
@@ -129,6 +161,8 @@ foo"
 
 #[test]
 fn test_pushd() {
+    setup();
+
     let d1 = cwd().unwrap();
     {
         let _p = pushd("xshell-macros").unwrap();
@@ -148,6 +182,8 @@ fn test_pushd() {
 
 #[test]
 fn pushd_parent_dir() {
+    setup();
+
     let current = cwd().unwrap();
     let dirname = current.file_name().unwrap();
     let _d = pushd("..").unwrap();
@@ -157,6 +193,8 @@ fn pushd_parent_dir() {
 
 #[test]
 fn test_pushd_lock() {
+    setup();
+
     let t1 = thread::spawn(|| {
         let _p = pushd("cbench").unwrap();
         sleep_ms(20);
@@ -176,6 +214,8 @@ const VAR: &str = "SPICA";
 
 #[test]
 fn test_pushenv() {
+    setup();
+
     let e1 = std::env::var_os(VAR);
     {
         let _e = pushenv(VAR, "1");
@@ -195,6 +235,8 @@ fn test_pushenv() {
 
 #[test]
 fn test_pushenv_lock() {
+    setup();
+
     let t1 = thread::spawn(|| {
         let _e = pushenv(VAR, "hello");
         sleep_ms(20);
@@ -212,6 +254,8 @@ fn test_pushenv_lock() {
 
 #[test]
 fn test_cp() {
+    setup();
+
     let path;
     {
         let tempdir = mktemp_d().unwrap();
@@ -276,6 +320,8 @@ pub fn f() {{
 
 #[test]
 fn write_makes_directory() {
+    setup();
+
     let tempdir = mktemp_d().unwrap();
     let folder = tempdir.path().join("some/nested/folder/structure");
     write_file(folder.join(".gitinclude"), "").unwrap();
@@ -284,6 +330,8 @@ fn write_makes_directory() {
 
 #[test]
 fn test_compile_failures() {
+    setup();
+
     check_failure("cmd!(92)", "expected a plain string literal");
     check_failure(r#"cmd!(r"raw")"#, "expected a plain string literal");
 
@@ -326,6 +374,8 @@ fn test_compile_failures() {
 
 #[test]
 fn fixed_cost_compile_times() {
+    setup();
+
     let _p = pushd("cbench");
     let baseline = {
         let _p = pushd("baseline");
@@ -358,6 +408,8 @@ fn compile_bench() -> Duration {
 
 #[test]
 fn versions_match() {
+    setup();
+
     let read_version = |path: &str| {
         let text = read_file(path).unwrap();
         let vers = text.lines().find(|it| it.starts_with("version =")).unwrap();
@@ -375,9 +427,38 @@ fn versions_match() {
 
 #[test]
 fn formatting() {
+    setup();
+
     cmd!("cargo fmt --all -- --check").run().unwrap()
 }
 
 fn sleep_ms(ms: u64) {
     thread::sleep(std::time::Duration::from_millis(ms))
+}
+
+fn setup() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        if let Err(err) = install_mock_binaries() {
+            panic!("failed to install binaries from mock_bin: {}", err)
+        }
+    });
+
+    fn install_mock_binaries() -> xshell::Result<()> {
+        let mock_bin = cwd()?.join("./mock_bin");
+        let _d = pushd(&mock_bin);
+        for path in read_dir(".")? {
+            if path.extension().unwrap_or_default() == "rs" {
+                cmd!("rustc {path}").run()?
+            }
+        }
+        let old_path = std::env::var("PATH").unwrap_or_default();
+        let new_path = {
+            let mut path = std::env::split_paths(&old_path).collect::<Vec<_>>();
+            path.insert(0, mock_bin);
+            std::env::join_paths(path).unwrap()
+        };
+        std::env::set_var("PATH", new_path);
+        Ok(())
+    }
 }
