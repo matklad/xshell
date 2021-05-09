@@ -394,6 +394,9 @@ impl Cmd {
     }
 
     /// Equivalent to [`std::process::Command::env_clear`].
+    ///
+    /// Note that on Windows some environmental variables are required for
+    /// process spawning. See https://github.com/rust-lang/rust/issues/31259.
     pub fn env_clear(mut self) -> Cmd {
         self.env_changes.push(EnvChange::Clear);
         self

@@ -10,7 +10,6 @@ fn test_env() {
 
     let v1 = "xshell_test_123";
     let v2 = "xshell_test_456";
-    let echo_env = format!("./mock_bin/echo_env{}", std::env::consts::EXE_SUFFIX);
 
     assert_env(cmd!("echo_env {v1}").env(v1, "123"), &[(v1, Some("123"))]);
 
@@ -28,6 +27,38 @@ fn test_env() {
             .env_remove("nothing"),
         &[(v1, Some("123")), (v2, Some("456"))],
     );
+
+    let _g1 = pushenv(v1, "foobar");
+    let _g2 = pushenv(v2, "quark");
+
+    assert_env(cmd!("echo_env {v1} {v2}"), &[(v1, Some("foobar")), (v2, Some("quark"))]);
+
+    assert_env(
+        cmd!("echo_env {v1} {v2}").env(v1, "wombo"),
+        &[(v1, Some("wombo")), (v2, Some("quark"))],
+    );
+
+    assert_env(cmd!("echo_env {v1} {v2}").env_remove(v1), &[(v1, None), (v2, Some("quark"))]);
+    assert_env(
+        cmd!("echo_env {v1} {v2}").env_remove(v1).env(v1, "baz"),
+        &[(v1, Some("baz")), (v2, Some("quark"))],
+    );
+    assert_env(
+        cmd!("echo_env {v1} {v2}").env(v1, "baz").env_remove(v1),
+        &[(v1, None), (v2, Some("quark"))],
+    );
+}
+
+#[test]
+#[cfg(not(windows))]
+fn test_env_clear() {
+    setup();
+
+    let v1 = "xshell_test_123";
+    let v2 = "xshell_test_456";
+
+    let echo_env = format!("./mock_bin/echo_env{}", std::env::consts::EXE_SUFFIX);
+
     assert_env(
         cmd!("{echo_env} {v1} {v2}").envs([(v1, "123"), (v2, "456")].iter().copied()).env_clear(),
         &[(v1, None), (v2, None)],
@@ -43,26 +74,10 @@ fn test_env() {
     let _g1 = pushenv(v1, "foobar");
     let _g2 = pushenv(v2, "quark");
 
-    assert_env(cmd!("echo_env {v1} {v2}"), &[(v1, Some("foobar")), (v2, Some("quark"))]);
-
-    assert_env(
-        cmd!("echo_env {v1} {v2}").env(v1, "wombo"),
-        &[(v1, Some("wombo")), (v2, Some("quark"))],
-    );
-
     assert_env(cmd!("{echo_env} {v1} {v2}").env_clear(), &[(v1, None), (v2, None)]);
-    assert_env(cmd!("echo_env {v1} {v2}").env_remove(v1), &[(v1, None), (v2, Some("quark"))]);
     assert_env(
         cmd!("{echo_env} {v1} {v2}").env_clear().env(v1, "baz"),
         &[(v1, Some("baz")), (v2, None)],
-    );
-    assert_env(
-        cmd!("echo_env {v1} {v2}").env_remove(v1).env(v1, "baz"),
-        &[(v1, Some("baz")), (v2, Some("quark"))],
-    );
-    assert_env(
-        cmd!("echo_env {v1} {v2}").env(v1, "baz").env_remove(v1),
-        &[(v1, None), (v2, Some("quark"))],
     );
     assert_env(cmd!("{echo_env} {v1} {v2}").env(v1, "baz").env_clear(), &[(v1, None), (v2, None)]);
 }
