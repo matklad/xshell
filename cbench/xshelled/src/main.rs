@@ -1,6 +1,6 @@
 use xshell::cmd;
 
 fn main() {
-    let date = cmd!("date +%Y-%m-%d").read().unwrap();
-    print!("today is: {}\n", date)
+    let stdout = cmd!("echo hello world").read().unwrap();
+    print!("{}\n", stdout)
 }

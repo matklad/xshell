@@ -3,7 +3,7 @@
 //! It also serves as a real-world example, yay bootstrap!
 use std::{env, process, thread, time::Duration, time::Instant};
 
-use xshell::{cmd, cwd, pushd, pushenv, read_dir, read_file, rm_rf, Result};
+use xshell::{cmd, pushd, read_file, rm_rf, Result};
 
 fn main() {
     if let Err(err) = try_main() {
@@ -25,23 +25,6 @@ fn test() -> Result<()> {
     if !cfg!(windows) {
         rm_rf("./target")?;
     }
-
-    let path_with_mock_bin = {
-        let _s = Section::new("INSTALL_MOCK_BIN");
-
-        let mock_bin = cwd()?.join("./mock_bin");
-        let _d = pushd(&mock_bin);
-        for path in read_dir(".")? {
-            if path.extension().unwrap_or_default() == "rs" {
-                cmd!("rustc {path}").run()?
-            }
-        }
-        let path = env::var("PATH").unwrap_or_default();
-        let mut path = env::split_paths(&path).collect::<Vec<_>>();
-        path.insert(0, mock_bin);
-        env::join_paths(path).unwrap()
-    };
-    let _e = pushenv("PATH", path_with_mock_bin);
 
     {
         let _s = Section::new("BUILD");
