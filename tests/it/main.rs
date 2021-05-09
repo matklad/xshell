@@ -376,34 +376,37 @@ fn test_compile_failures() {
 fn fixed_cost_compile_times() {
     setup();
 
-    let _p = pushd("cbench");
-    let baseline = {
-        let _p = pushd("baseline");
-        compile_bench()
-    };
-
-    let xshelled = {
-        let _p = pushd("xshelled");
-        compile_bench()
-    };
+    let _p = pushd("cbench").unwrap();
+    let baseline = compile_bench("baseline");
+    let _ducted = compile_bench("ducted");
+    let xshelled = compile_bench("xshelled");
     let ratio = (xshelled.as_millis() as f64) / (baseline.as_millis() as f64);
     assert!(1.0 < ratio && ratio < 10.0)
 }
 
-fn compile_bench() -> Duration {
+fn compile_bench(name: &str) -> Duration {
+    let _p = pushd(name).unwrap();
+    cmd!("cargo build -q").read().unwrap();
+
     let n = 5;
     let mut times = Vec::new();
     for _ in 0..n {
         rm_rf("./target").unwrap();
         let start = Instant::now();
-        cmd!("cargo build").read().unwrap();
+        cmd!("cargo build -q").read().unwrap();
         let elapsed = start.elapsed();
         times.push(elapsed);
     }
+
     times.sort();
     times.remove(0);
     times.pop();
-    times.into_iter().sum::<Duration>()
+    let total = times.iter().sum::<Duration>();
+    let average = total / (times.len() as u32);
+
+    eprintln!("compiling {}: {:?}", name, average);
+
+    total
 }
 
 #[test]
