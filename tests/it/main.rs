@@ -416,6 +416,7 @@ fn versions_match() {
     let read_version = |path: &str| {
         let text = read_file(path).unwrap();
         let vers = text.lines().find(|it| it.starts_with("version =")).unwrap();
+        let vers = vers.splitn(2, '#').next().unwrap();
         vers.trim_start_matches("version =").trim().trim_matches('"').to_string()
     };
 
