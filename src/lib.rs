@@ -330,7 +330,7 @@ impl Cmd {
             echo_cmd: true,
             secret: false,
             env_changes: vec![],
-            null: true,
+            null: false,
         }
     }
 
