@@ -286,6 +286,7 @@ pub struct Cmd {
     echo_cmd: bool,
     secret: bool,
     env_changes: Vec<EnvChange>,
+    null: bool,
 }
 
 impl fmt::Display for Cmd {
@@ -329,6 +330,7 @@ impl Cmd {
             echo_cmd: true,
             secret: false,
             env_changes: vec![],
+            null: true,
         }
     }
 
@@ -399,6 +401,13 @@ impl Cmd {
     /// process spawning. See https://github.com/rust-lang/rust/issues/31259.
     pub fn env_clear(mut self) -> Cmd {
         self.env_changes.push(EnvChange::Clear);
+        self
+    }
+
+    /// Returns a `Cmd` that will ignore the stdout and stderr streams. This is equivalent of
+    /// attaching both streams to `/dev/null`.
+    pub fn null(mut self) -> Cmd {
+        self.null = true;
         self
     }
 
@@ -496,6 +505,8 @@ impl Cmd {
     }
 
     fn output_impl(&self, read_stdout: bool, read_stderr: bool) -> io::Result<Output> {
+        assert!(!self.null, "Cannot get output from null pipes");
+
         let mut child = {
             let _guard = gsl::read();
             self.command()
@@ -520,6 +531,10 @@ impl Cmd {
         let mut res = std::process::Command::new(&self.args[0]);
         res.args(&self.args[1..]);
         self.apply_env(&mut res);
+        if self.null {
+            res.stdout(Stdio::null());
+            res.stderr(Stdio::null());
+        }
         res
     }
 
