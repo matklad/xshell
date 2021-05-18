@@ -255,7 +255,7 @@ fn test_pushenv_lock() {
 #[test]
 #[should_panic]
 fn test_cannot_use_output_with_null() {
-    cmd!("asdf").null().output().unwrap();
+    let _ = cmd!("asdf").null().output();
 }
 
 #[test]
