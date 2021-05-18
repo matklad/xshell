@@ -1,6 +1,7 @@
 mock_bin/echo
 mock_bin/echo_env
 mock_bin/date
+mock_bin/echoboth
 target/
 Cargo.lock
 .idea

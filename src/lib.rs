@@ -286,6 +286,8 @@ pub struct Cmd {
     echo_cmd: bool,
     secret: bool,
     env_changes: Vec<EnvChange>,
+    ignore_stdout: bool,
+    ignore_stderr: bool,
 }
 
 impl fmt::Display for Cmd {
@@ -329,6 +331,8 @@ impl Cmd {
             echo_cmd: true,
             secret: false,
             env_changes: vec![],
+            ignore_stdout: false,
+            ignore_stderr: false,
         }
     }
 
@@ -399,6 +403,20 @@ impl Cmd {
     /// process spawning. See https://github.com/rust-lang/rust/issues/31259.
     pub fn env_clear(mut self) -> Cmd {
         self.env_changes.push(EnvChange::Clear);
+        self
+    }
+
+    /// Returns a `Cmd` that will ignore the stdout stream. This is equivalent of
+    /// attaching stdout to `/dev/null`.
+    pub fn ignore_stdout(mut self) -> Cmd {
+        self.ignore_stdout = true;
+        self
+    }
+
+    /// Returns a `Cmd` that will ignore the stderr stream. This is equivalent of
+    /// attaching stderr to `/dev/null`.
+    pub fn ignore_stderr(mut self) -> Cmd {
+        self.ignore_stderr = true;
         self
     }
 
@@ -498,14 +516,22 @@ impl Cmd {
     fn output_impl(&self, read_stdout: bool, read_stderr: bool) -> io::Result<Output> {
         let mut child = {
             let _guard = gsl::read();
-            self.command()
-                .stdin(match &self.stdin_contents {
-                    Some(_) => Stdio::piped(),
-                    None => Stdio::null(),
-                })
-                .stdout(if read_stdout { Stdio::piped() } else { Stdio::inherit() })
-                .stderr(if read_stderr { Stdio::piped() } else { Stdio::inherit() })
-                .spawn()?
+            let mut command = self.command();
+
+            command.stdin(match &self.stdin_contents {
+                Some(_) => Stdio::piped(),
+                None => Stdio::null(),
+            });
+
+            if !self.ignore_stdout {
+                command.stdout(if read_stdout { Stdio::piped() } else { Stdio::inherit() });
+            }
+
+            if !self.ignore_stderr {
+                command.stderr(if read_stderr { Stdio::piped() } else { Stdio::inherit() });
+            }
+
+            command.spawn()?
         };
 
         if let Some(stdin_contents) = &self.stdin_contents {
@@ -520,6 +546,12 @@ impl Cmd {
         let mut res = std::process::Command::new(&self.args[0]);
         res.args(&self.args[1..]);
         self.apply_env(&mut res);
+        if self.ignore_stdout {
+            res.stdout(Stdio::null());
+        }
+        if self.ignore_stderr {
+            res.stderr(Stdio::null());
+        }
         res
     }
 
