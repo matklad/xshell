@@ -408,7 +408,6 @@ impl Cmd {
 
     /// Returns a `Cmd` that will ignore the stdout stream. This is equivalent of
     /// attaching stdout to `/dev/null`.
-    /// Will panic if stdout is read by calling `read` or `output`
     pub fn ignore_stdout(mut self) -> Cmd {
         self.ignore_stdout = true;
         self
@@ -416,7 +415,6 @@ impl Cmd {
 
     /// Returns a `Cmd` that will ignore the stderr stream. This is equivalent of
     /// attaching stderr to `/dev/null`.
-    /// Will panic if stderr is read by calling `read_stderr` or `output`
     pub fn ignore_stderr(mut self) -> Cmd {
         self.ignore_stderr = true;
         self
@@ -516,24 +514,28 @@ impl Cmd {
     }
 
     fn output_impl(&self, read_stdout: bool, read_stderr: bool) -> io::Result<Output> {
-        if read_stdout && self.ignore_stdout {
-            panic!("Cannot read from ignored stdout");
-        }
-
-        if read_stderr && self.ignore_stderr {
-            panic!("Cannot read from ignored stderr")
-        }
-
         let mut child = {
             let _guard = gsl::read();
-            self.command()
-                .stdin(match &self.stdin_contents {
-                    Some(_) => Stdio::piped(),
-                    None => Stdio::null(),
-                })
-                .stdout(if read_stdout { Stdio::piped() } else { Stdio::inherit() })
-                .stderr(if read_stderr { Stdio::piped() } else { Stdio::inherit() })
-                .spawn()?
+            let mut command = self.command();
+
+            command.stdin(match &self.stdin_contents {
+                Some(_) => Stdio::piped(),
+                None => Stdio::null(),
+            });
+
+            if read_stdout && !self.ignore_stdout {
+                command.stdout(Stdio::piped());
+            } else if !read_stdout && !self.ignore_stdout {
+                command.stdout(Stdio::inherit());
+            }
+
+            if read_stderr && !self.ignore_stderr {
+                command.stderr(Stdio::piped());
+            } else if !read_stderr && !self.ignore_stderr {
+                command.stderr(Stdio::inherit());
+            }
+
+            command.spawn()?
         };
 
         if let Some(stdin_contents) = &self.stdin_contents {

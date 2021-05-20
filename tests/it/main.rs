@@ -253,32 +253,37 @@ fn test_pushenv_lock() {
 }
 
 #[test]
-#[should_panic]
-fn test_cannot_use_output_with_ignored_stdout() {
-    let _ = cmd!("asdf").ignore_stdout().read();
+fn output_with_ignore() {
+    setup();
+
+    let output = cmd!("echoboth 'hello world!'").ignore_stdout().output().unwrap();
+    assert_eq!(output.stderr, b"hello world!\n");
+    assert_eq!(output.stdout, b"");
+
+    let output = cmd!("echoboth 'hello world!'").ignore_stderr().output().unwrap();
+    assert_eq!(output.stdout, b"hello world!\n");
+    assert_eq!(output.stderr, b"");
+
+    let output = cmd!("echoboth 'hello world!'").ignore_stdout().ignore_stderr().output().unwrap();
+    assert_eq!(output.stdout, b"");
+    assert_eq!(output.stderr, b"");
 }
 
 #[test]
-#[should_panic]
-fn test_cannot_use_output_with_ignored_stderr() {
-    let _ = cmd!("asdf").ignore_stderr().read_stderr();
-}
+fn test_read_with_ignore() {
+    setup();
 
-#[test]
-#[should_panic]
-fn test_cannot_use_output_with_ignored_both() {
-    let _ = cmd!("adsf").ignore_stdout().ignore_stderr().read_stderr();
-}
+    let stdout = cmd!("echo 'hello world'").ignore_stdout().read().unwrap();
+    assert!(stdout.is_empty());
 
-#[test]
-fn can_read_stdout_from_ignored_stderr() {
-    let stdout = cmd!("echo 'hello world!'").ignore_stderr().read().unwrap();
+    let stderr = cmd!("echo 'hello world'").ignore_stderr().read_stderr().unwrap();
+    assert!(stderr.is_empty());
+
+    let stdout = cmd!("echoboth 'hello world!'").ignore_stderr().read().unwrap();
     assert_eq!(stdout, "hello world!");
-}
 
-#[test]
-fn can_read_stderr_from_ignored_stdout() {
-    // how to write something to stderr
+    let stderr = cmd!("echoboth 'hello world!'").ignore_stdout().read_stderr().unwrap();
+    assert_eq!(stderr, "hello world!");
 }
 
 #[test]
