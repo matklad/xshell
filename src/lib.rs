@@ -516,8 +516,13 @@ impl Cmd {
     }
 
     fn output_impl(&self, read_stdout: bool, read_stderr: bool) -> io::Result<Output> {
-        assert!(read_stdout && !self.ignore_stdout, "Cannot read from ignored stdout");
-        assert!(read_stderr && !self.ignore_stderr, "Cannot read from ignored stderr");
+        if read_stdout && self.ignore_stdout {
+            panic!("Cannot read from ignored stdout");
+        }
+
+        if read_stderr && self.ignore_stderr {
+            panic!("Cannot read from ignored stderr")
+        }
 
         let mut child = {
             let _guard = gsl::read();

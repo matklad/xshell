@@ -271,6 +271,17 @@ fn test_cannot_use_output_with_ignored_both() {
 }
 
 #[test]
+fn can_read_stdout_from_ignored_stderr() {
+    let stdout = cmd!("echo 'hello world!'").ignore_stderr().read().unwrap();
+    assert_eq!(stdout, "hello world!");
+}
+
+#[test]
+fn can_read_stderr_from_ignored_stdout() {
+    // how to write something to stderr
+}
+
+#[test]
 fn test_cp() {
     setup();
 
