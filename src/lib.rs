@@ -286,7 +286,8 @@ pub struct Cmd {
     echo_cmd: bool,
     secret: bool,
     env_changes: Vec<EnvChange>,
-    null: bool,
+    ignore_stdout: bool,
+    ignore_stderr: bool,
 }
 
 impl fmt::Display for Cmd {
@@ -330,7 +331,8 @@ impl Cmd {
             echo_cmd: true,
             secret: false,
             env_changes: vec![],
-            null: false,
+            ignore_stdout: false,
+            ignore_stderr: false,
         }
     }
 
@@ -404,10 +406,17 @@ impl Cmd {
         self
     }
 
-    /// Returns a `Cmd` that will ignore the stdout and stderr streams. This is equivalent of
-    /// attaching both streams to `/dev/null`.
-    pub fn null(mut self) -> Cmd {
-        self.null = true;
+    /// Returns a `Cmd` that will ignore the stdout stream. This is equivalent of
+    /// attaching stdout to `/dev/null`.
+    pub fn ignore_stdout(mut self) -> Cmd {
+        self.ignore_stdout = true;
+        self
+    }
+
+    /// Returns a `Cmd` that will ignore the stderr stream. This is equivalent of
+    /// attaching stderr to `/dev/null`.
+    pub fn ignore_stderr(mut self) -> Cmd {
+        self.ignore_stderr = true;
         self
     }
 
@@ -505,7 +514,8 @@ impl Cmd {
     }
 
     fn output_impl(&self, read_stdout: bool, read_stderr: bool) -> io::Result<Output> {
-        assert!(!self.null, "Cannot get output from null pipes");
+        assert!(read_stdout && !self.ignore_stdout, "Cannot read from ignored stdout");
+        assert!(read_stderr && !self.ignore_stderr, "Cannot read from ignored stderr");
 
         let mut child = {
             let _guard = gsl::read();
@@ -531,8 +541,10 @@ impl Cmd {
         let mut res = std::process::Command::new(&self.args[0]);
         res.args(&self.args[1..]);
         self.apply_env(&mut res);
-        if self.null {
+        if self.ignore_stdout {
             res.stdout(Stdio::null());
+        }
+        if self.ignore_stderr {
             res.stderr(Stdio::null());
         }
         res

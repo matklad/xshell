@@ -254,8 +254,20 @@ fn test_pushenv_lock() {
 
 #[test]
 #[should_panic]
-fn test_cannot_use_output_with_null() {
-    let _ = cmd!("asdf").null().output();
+fn test_cannot_use_output_with_ignored_stdout() {
+    let _ = cmd!("asdf").ignore_stdout().read();
+}
+
+#[test]
+#[should_panic]
+fn test_cannot_use_output_with_ignored_stderr() {
+    let _ = cmd!("asdf").ignore_stderr().read_stderr();
+}
+
+#[test]
+#[should_panic]
+fn test_cannot_use_output_with_ignored_both() {
+    let _ = cmd!("adsf").ignore_stdout().ignore_stderr().read_stderr();
 }
 
 #[test]
