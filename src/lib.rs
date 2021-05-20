@@ -408,6 +408,7 @@ impl Cmd {
 
     /// Returns a `Cmd` that will ignore the stdout stream. This is equivalent of
     /// attaching stdout to `/dev/null`.
+    /// Will panic if stdout is read by calling `read` or `output`
     pub fn ignore_stdout(mut self) -> Cmd {
         self.ignore_stdout = true;
         self
@@ -415,6 +416,7 @@ impl Cmd {
 
     /// Returns a `Cmd` that will ignore the stderr stream. This is equivalent of
     /// attaching stderr to `/dev/null`.
+    /// Will panic if stderr is read by calling `read_stderr` or `output`
     pub fn ignore_stderr(mut self) -> Cmd {
         self.ignore_stderr = true;
         self
