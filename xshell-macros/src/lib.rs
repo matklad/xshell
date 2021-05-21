@@ -184,10 +184,6 @@ fn parse_ts(s: &str) -> TokenStream {
     s.parse().unwrap()
 }
 
-fn lit_ts(s: &str) -> TokenStream {
-    TokenTree::Literal(proc_macro::Literal::string(s)).into()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
