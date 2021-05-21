@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.13
+
+- Add `ignore_stdout`, `ignore_stderr` functions.
+
 ## 0.1.12
 
 - Add `env`, `env_revome`, `env_clear` functions.
