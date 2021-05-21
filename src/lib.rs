@@ -524,7 +524,7 @@ impl Cmd {
             });
 
             if !self.ignore_stdout {
-                command.stdout(if read_stdout  { Stdio::piped() } else { Stdio::inherit() });
+                command.stdout(if read_stdout { Stdio::piped() } else { Stdio::inherit() });
             }
 
             if !self.ignore_stderr {
