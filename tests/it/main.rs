@@ -253,6 +253,40 @@ fn test_pushenv_lock() {
 }
 
 #[test]
+fn output_with_ignore() {
+    setup();
+
+    let output = cmd!("echoboth 'hello world!'").ignore_stdout().output().unwrap();
+    assert_eq!(output.stderr, b"hello world!\n");
+    assert_eq!(output.stdout, b"");
+
+    let output = cmd!("echoboth 'hello world!'").ignore_stderr().output().unwrap();
+    assert_eq!(output.stdout, b"hello world!\n");
+    assert_eq!(output.stderr, b"");
+
+    let output = cmd!("echoboth 'hello world!'").ignore_stdout().ignore_stderr().output().unwrap();
+    assert_eq!(output.stdout, b"");
+    assert_eq!(output.stderr, b"");
+}
+
+#[test]
+fn test_read_with_ignore() {
+    setup();
+
+    let stdout = cmd!("echo 'hello world'").ignore_stdout().read().unwrap();
+    assert!(stdout.is_empty());
+
+    let stderr = cmd!("echo 'hello world'").ignore_stderr().read_stderr().unwrap();
+    assert!(stderr.is_empty());
+
+    let stdout = cmd!("echoboth 'hello world!'").ignore_stderr().read().unwrap();
+    assert_eq!(stdout, "hello world!");
+
+    let stderr = cmd!("echoboth 'hello world!'").ignore_stdout().read_stderr().unwrap();
+    assert_eq!(stderr, "hello world!");
+}
+
+#[test]
 fn test_cp() {
     setup();
 
