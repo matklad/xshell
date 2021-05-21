@@ -527,10 +527,8 @@ impl Cmd {
                 command.stdout(if read_stdout  { Stdio::piped() } else { Stdio::inherit() });
             }
 
-            if read_stderr && !self.ignore_stderr {
-                command.stderr(Stdio::piped());
-            } else if !read_stderr && !self.ignore_stderr {
-                command.stderr(Stdio::inherit());
+            if !self.ignore_stderr {
+                command.stderr(if read_stderr { Stdio::piped() } else { Stdio::inherit() });
             }
 
             command.spawn()?
