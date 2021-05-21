@@ -523,10 +523,8 @@ impl Cmd {
                 None => Stdio::null(),
             });
 
-            if read_stdout && !self.ignore_stdout {
-                command.stdout(Stdio::piped());
-            } else if !read_stdout && !self.ignore_stdout {
-                command.stdout(Stdio::inherit());
+            if !self.ignore_stdout {
+                command.stdout(if read_stdout  { Stdio::piped() } else { Stdio::inherit() });
             }
 
             if read_stderr && !self.ignore_stderr {
