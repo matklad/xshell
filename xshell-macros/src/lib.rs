@@ -106,8 +106,14 @@ fn shell_lex(
     })
 }
 
+/// Like trim_matches except only trims a maximum of 1 match
+fn strip_matches<'a>(s: &'a str, pattern: &str) -> &'a str {
+    s.strip_prefix(pattern).unwrap_or(s).strip_suffix(pattern).unwrap_or(s)
+}
+
 fn tokenize(cmd: &str) -> impl Iterator<Item = Result<Token<'_>>> + '_ {
-    let mut cmd = cmd.trim_matches('"');
+    let mut cmd = strip_matches(cmd, "\"");
+
     iter::from_fn(move || {
         let old_len = cmd.len();
         cmd = cmd.trim_start();
@@ -128,13 +134,13 @@ fn tokenize(cmd: &str) -> impl Iterator<Item = Result<Token<'_>>> + '_ {
     })
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 struct Token<'a> {
     joined_to_prev: bool,
     text: &'a str,
     kind: TokenKind,
 }
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 enum TokenKind {
     Word,
     String,
@@ -176,4 +182,22 @@ fn respan(ts: TokenStream, span: Span) -> TokenStream {
 
 fn parse_ts(s: &str) -> TokenStream {
     s.parse().unwrap()
+}
+
+fn lit_ts(s: &str) -> TokenStream {
+    TokenTree::Literal(proc_macro::Literal::string(s)).into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use TokenKind::*;
+
+    #[test]
+    fn double_quoted() {
+        let res = tokenize(r#"""asdf"""#).collect::<Result<Vec<Token<'_>>>>().unwrap();
+        eprintln!("res = {:?}", res);
+
+        assert_eq!(&*res, [Token { joined_to_prev: true, text: "\"asdf\"", kind: Word }])
+    }
 }

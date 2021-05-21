@@ -470,6 +470,16 @@ fn formatting() {
     cmd!("cargo fmt --all -- --check").run().unwrap()
 }
 
+#[test]
+#[allow(unused_must_use)]
+fn string_escapes() {
+    setup();
+
+    cmd!("\"hello\"");
+    cmd!("\"\"\" asdf\" \"");
+    cmd!("\\\\\\\\\\\\\\\\\\\\\\\\\\");
+}
+
 fn sleep_ms(ms: u64) {
     thread::sleep(std::time::Duration::from_millis(ms))
 }
