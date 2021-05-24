@@ -471,13 +471,12 @@ fn formatting() {
 }
 
 #[test]
-#[allow(unused_must_use)]
 fn string_escapes() {
     setup();
 
-    cmd!("\"hello\"");
-    cmd!("\"\"\" asdf\" \"");
-    cmd!("\\\\\\\\\\\\\\\\\\\\\\\\\\");
+    assert_eq!(cmd!("\"hello\"").to_string(), "\"hello\"");
+    assert_eq!(cmd!("\"\"\" asdf\" \"").to_string(), "\"\"\" asdf\" \"");
+    assert_eq!(cmd!("\\\\\\\\\\\\\\\\\\\\\\\\\\").to_string(), "\\\\\\\\\\\\\\\\\\\\\\\\\\");
 }
 
 fn sleep_ms(ms: u64) {

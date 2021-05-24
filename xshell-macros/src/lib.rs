@@ -134,13 +134,13 @@ fn tokenize(cmd: &str) -> impl Iterator<Item = Result<Token<'_>>> + '_ {
     })
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 struct Token<'a> {
     joined_to_prev: bool,
     text: &'a str,
     kind: TokenKind,
 }
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 enum TokenKind {
     Word,
     String,
@@ -182,18 +182,4 @@ fn respan(ts: TokenStream, span: Span) -> TokenStream {
 
 fn parse_ts(s: &str) -> TokenStream {
     s.parse().unwrap()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use TokenKind::*;
-
-    #[test]
-    fn double_quoted() {
-        let res = tokenize(r#"""asdf"""#).collect::<Result<Vec<Token<'_>>>>().unwrap();
-        eprintln!("res = {:?}", res);
-
-        assert_eq!(&*res, [Token { joined_to_prev: true, text: "\"asdf\"", kind: Word }])
-    }
 }
