@@ -470,6 +470,15 @@ fn formatting() {
     cmd!("cargo fmt --all -- --check").run().unwrap()
 }
 
+#[test]
+fn string_escapes() {
+    setup();
+
+    assert_eq!(cmd!("\"hello\"").to_string(), "\"hello\"");
+    assert_eq!(cmd!("\"\"\"asdf\"\"\"").to_string(), r##""""asdf""""##);
+    assert_eq!(cmd!("\\\\\\\\\\\\\\\\\\\\\\\\\\").to_string(), "\\\\\\\\\\\\\\\\\\\\\\\\\\");
+}
+
 fn sleep_ms(ms: u64) {
     thread::sleep(std::time::Duration::from_millis(ms))
 }
