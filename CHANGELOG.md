@@ -1,5 +1,10 @@
 # Changelog
 
+
+## 0.1.14
+
+- Correctly handle commands name starting with quote.
+
 ## 0.1.13
 
 - Add `ignore_stdout`, `ignore_stderr` functions.
