@@ -476,7 +476,7 @@ fn string_escapes() {
 
     assert_eq!(cmd!("\"hello\"").to_string(), "\"hello\"");
     assert_eq!(cmd!("\"\"\"asdf\"\"\"").to_string(), r##""""asdf""""##);
-    assert_eq!(cmd!("\\\\\\\\\\\\\\\\\\\\\\\\\\").to_string(), "\\\\\\\\\\\\\\\\\\\\\\\\\\");
+    assert_eq!(cmd!("\\\\").to_string(), r#"\\"#);
 }
 
 fn sleep_ms(ms: u64) {
