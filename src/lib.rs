@@ -342,6 +342,14 @@ impl Cmd {
         self
     }
 
+    /// Optionally pushes an argument onto this `Cmd`.
+    pub fn opt_arg(mut self, opt_arg: Option<impl AsRef<OsStr>>) -> Cmd {
+        if let Some(arg) = opt_arg {
+            self._arg(arg.as_ref());
+        }
+        self
+    }
+
     /// Pushes the arguments onto this `Cmd`.
     pub fn args<I>(mut self, args: I) -> Cmd
     where
@@ -349,6 +357,18 @@ impl Cmd {
         I::Item: AsRef<OsStr>,
     {
         args.into_iter().for_each(|it| self._arg(it.as_ref()));
+        self
+    }
+
+    /// Optionally pushes the arguments onto this `Cmd`.
+    pub fn opt_args<I>(mut self, opt_args: Option<I>) -> Cmd
+    where
+        I: IntoIterator,
+        I::Item: AsRef<OsStr>,
+    {
+        if let Some(args) = opt_args {
+            args.into_iter().for_each(|it| self._arg(it.as_ref()));
+        }
         self
     }
 
