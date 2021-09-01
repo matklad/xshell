@@ -52,10 +52,7 @@
 //! ```
 //! # use xshell::cmd;
 //! let err = cmd!("false").read().unwrap_err();
-//! assert_eq!(
-//!     err.to_string(),
-//!     "command `false` failed, exit code: 1",
-//! );
+//! assert!(err.to_string().starts_with("command `false` failed"));
 //! ```
 //!
 //! <hr>
