@@ -96,7 +96,7 @@ fn exit_status() {
     setup();
 
     let err = cmd!("false").read().unwrap_err();
-    assert_eq!(err.to_string(), "command `false` failed, exit code: 1");
+    assert!(err.to_string().starts_with("command `false` failed"));
 }
 
 #[test]
@@ -477,6 +477,24 @@ fn string_escapes() {
     assert_eq!(cmd!("\"hello\"").to_string(), "\"hello\"");
     assert_eq!(cmd!("\"\"\"asdf\"\"\"").to_string(), r##""""asdf""""##);
     assert_eq!(cmd!("\\\\").to_string(), r#"\\"#);
+}
+
+#[test]
+fn cd_tempdir() {
+    println!("cwd: {}", cwd().unwrap().display());
+    let tmp = mktemp_d().unwrap();
+    println!("tmp: {}", tmp.path().display());
+    // Enter directory in child block so pushd guard is dropped before tmp
+    {
+        let _cwd = pushd(tmp.path()).unwrap();
+        println!("cwd: {}", cwd().unwrap().display());
+    }
+}
+
+#[test]
+fn cd_tempdir_no_block() {
+    let tmp = mktemp_d().unwrap();
+    let _cwd = pushd(tmp.path()).unwrap();
 }
 
 fn sleep_ms(ms: u64) {
