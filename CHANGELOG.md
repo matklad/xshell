@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.15
+
+- Correctly handle multiple internal read guards.
 
 ## 0.1.14
 
