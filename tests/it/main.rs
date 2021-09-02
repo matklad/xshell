@@ -497,6 +497,13 @@ fn cd_tempdir_no_block() {
     let _cwd = pushd(tmp.path()).unwrap();
 }
 
+#[test]
+fn current_version_in_changelog() {
+    let changelog = include_str!("../../CHANGELOG.md");
+    let current_version_header = format!("## {}\n", env!("CARGO_PKG_VERSION"));
+    assert!(changelog.contains(&current_version_header));
+}
+
 fn sleep_ms(ms: u64) {
     thread::sleep(std::time::Duration::from_millis(ms))
 }
