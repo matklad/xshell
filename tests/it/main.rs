@@ -499,7 +499,8 @@ fn cd_tempdir_no_block() {
 
 #[test]
 fn current_version_in_changelog() {
-    let changelog = include_str!("../../CHANGELOG.md");
+    let _p = pushd(env!("CARGO_MANIFEST_DIR")).unwrap();
+    let changelog = read_file("CHANGELOG.md").unwrap();
     let current_version_header = format!("## {}\n", env!("CARGO_PKG_VERSION"));
     assert!(changelog.contains(&current_version_header));
 }
