@@ -2,10 +2,7 @@
 
 use std::{
     cell::Cell,
-    mem::MaybeUninit,
-    ptr,
-    sync::Once,
-    sync::{RwLock, RwLockReadGuard, RwLockWriteGuard},
+    sync::{RwLockReadGuard, RwLockWriteGuard},
 };
 
 /// If, on the same thread, there are multiple calls to [`read`] or [`write`],
@@ -42,6 +39,30 @@ enum Cache {
     Write,
 }
 
+mod rw_lock {
+    use std::{
+        mem::MaybeUninit,
+        ptr,
+        sync::{Once, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard},
+    };
+
+    pub(super) fn write() -> RwLockWriteGuard<'static, ()> {
+        lock().write().unwrap_or_else(PoisonError::into_inner)
+    }
+    pub(super) fn read() -> RwLockReadGuard<'static, ()> {
+        lock().read().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn lock() -> &'static RwLock<()> {
+        static mut LOCK: MaybeUninit<RwLock<()>> = MaybeUninit::uninit();
+        static LOCK_INIT: Once = Once::new();
+        unsafe {
+            LOCK_INIT.call_once(|| ptr::write(LOCK.as_mut_ptr(), RwLock::new(())));
+            &*LOCK.as_ptr()
+        }
+    }
+}
+
 /// Returns a [`Guard`] for write access to global resources.
 pub(crate) fn write() -> Guard {
     match CACHE.with(Cell::get) {
@@ -55,7 +76,7 @@ pub(crate) fn write() -> Guard {
                 readers, 0,
                 "calling write() with an active read guard on the same thread might deadlock"
             );
-            let w_guard = static_rw_lock().write().unwrap();
+            let w_guard = rw_lock::write();
             // note that we have a writer.
             CACHE.with(|it| it.set(Cache::Write));
             Guard(Some(Repr::Write(w_guard)))
@@ -77,7 +98,7 @@ pub(crate) fn read() -> Guard {
             if readers == 0 {
                 // this thread has no readers or writers. try to acquire the
                 // lock for reading.
-                let r_guard = static_rw_lock().read().unwrap();
+                let r_guard = rw_lock::read();
                 // note that we now have 1 reader.
                 CACHE.with(|it| it.set(Cache::Read(1)));
                 Guard(Some(Repr::Read(Some(r_guard))))
@@ -88,15 +109,6 @@ pub(crate) fn read() -> Guard {
                 Guard(Some(Repr::Read(None)))
             }
         }
-    }
-}
-
-fn static_rw_lock() -> &'static RwLock<()> {
-    static mut LOCK: MaybeUninit<RwLock<()>> = MaybeUninit::uninit();
-    static LOCK_INIT: Once = Once::new();
-    unsafe {
-        LOCK_INIT.call_once(|| ptr::write(LOCK.as_mut_ptr(), RwLock::new(())));
-        &*LOCK.as_ptr()
     }
 }
 

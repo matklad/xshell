@@ -363,6 +363,27 @@ fn write_makes_directory() {
 }
 
 #[test]
+fn recovers_from_panics() {
+    let tempdir = mktemp_d().unwrap();
+    let tempdir = tempdir.path().canonicalize().unwrap();
+
+    let orig = cwd().unwrap();
+
+    std::panic::catch_unwind(|| {
+        let _p = pushd(&tempdir).unwrap();
+        assert_eq!(cwd().unwrap(), tempdir);
+        std::panic::resume_unwind(Box::new(()));
+    })
+    .unwrap_err();
+
+    assert_eq!(cwd().unwrap(), orig);
+    {
+        let _p = pushd(&tempdir).unwrap();
+        assert_eq!(cwd().unwrap(), tempdir);
+    }
+}
+
+#[test]
 fn test_compile_failures() {
     setup();
 
