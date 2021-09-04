@@ -258,7 +258,7 @@ pub use xshell_macros::__cmd;
 pub use crate::{
     env::{pushd, pushenv, Pushd, Pushenv},
     error::{Error, Result},
-    fs::{cp, cwd, mkdir_p, mktemp_d, read_dir, read_file, rm_rf, write_file, TempDir},
+    fs::{cp, cwd, hard_link, mkdir_p, mktemp_d, read_dir, read_file, rm_rf, write_file, TempDir},
 };
 
 /// Constructs a [`Cmd`] from the given string.
