@@ -76,6 +76,15 @@ fn _cp(src: &Path, dst: &Path) -> Result<()> {
     with_path(src, std::fs::copy(src, dst)).map(|_size| ())
 }
 
+/// Hardlinks `src` to `dst`.
+pub fn hard_link(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {
+    _hard_link(src.as_ref(), dst.as_ref())
+}
+fn _hard_link(src: &Path, dst: &Path) -> Result<()> {
+    let _guard = gsl::read();
+    with_path(src, std::fs::hard_link(src, dst))
+}
+
 /// Returns a sorted list of paths directly contained in the directory at `path`
 /// that were able to be accessed without error.
 pub fn read_dir(path: impl AsRef<Path>) -> Result<Vec<PathBuf>> {
