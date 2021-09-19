@@ -79,6 +79,16 @@ fn interpolation_spat() {
 }
 
 #[test]
+fn splat_option() {
+    setup();
+
+    let a: Option<&OsStr> = None;
+    let b = Some("hello");
+    let output = cmd!("echo {a...} {b...}").read().unwrap();
+    assert_eq!(output, "hello")
+}
+
+#[test]
 fn splat_idiom() {
     setup();
 
