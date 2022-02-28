@@ -247,8 +247,8 @@ use std::{
     fmt, io,
     io::Write,
     path::Path,
-    process::Output,
     process::Stdio,
+    process::{ExitStatus, Output},
 };
 
 use error::CmdErrorKind;
@@ -459,6 +459,20 @@ impl Cmd {
     /// Returns the stdout from running the command.
     pub fn read(self) -> Result<String> {
         self.read_stream(false)
+    }
+
+    /// Returns stdout along with status from running the command.
+    pub fn read_with_status(self) -> Result<(String, ExitStatus)> {
+
+        let output = self
+            .output_impl(true, false)
+            .map_err(move |io_err| CmdErrorKind::Io(io_err).err(self))?;
+
+        Ok((
+            String::from_utf8(output.stdout)
+                .map_err(|utf8_err| CmdErrorKind::NonUtf8Output(utf8_err).err(self))?,
+            output.status,
+        ))
     }
 
     /// Returns the stderr from running the command.
