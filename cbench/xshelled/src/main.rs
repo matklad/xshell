@@ -1,6 +1,7 @@
-use xshell::cmd;
+use xshell::{Shell, cmd};
 
 fn main() {
-    let stdout = cmd!("echo hello world").read().unwrap();
+    let sh = Shell::new().unwrap();
+    let stdout = cmd!(sh, "echo hello world").read().unwrap();
     print!("{}\n", stdout)
 }

@@ -5,7 +5,7 @@
 
 use std::iter;
 
-use proc_macro::{Group, Span, TokenStream, TokenTree};
+use proc_macro::{Delimiter, Group, Literal, Span, TokenStream, TokenTree};
 
 #[doc(hidden)]
 #[proc_macro]
@@ -24,8 +24,13 @@ fn try_cmd(macro_arg: TokenStream) -> Result<TokenStream> {
         (cmd, literal)
     };
 
+    let literal = match into_literal(&literal) {
+        Some(it) => it,
+        None => return Err("expected a plain string literal".to_string()),
+    };
+
     let literal_text = literal.to_string();
-    if !(matches!(literal, TokenTree::Literal(_)) && literal_text.starts_with('"')) {
+    if !literal_text.starts_with('"') {
         return Err("expected a plain string literal".to_string());
     }
 
@@ -40,7 +45,6 @@ fn try_cmd(macro_arg: TokenStream) -> Result<TokenStream> {
             return Err("can't splat program name".to_string());
         }
         res.extend(Some(cmd));
-        res.extend(parse_ts("::new"));
         res.extend(program);
     }
 
@@ -72,6 +76,20 @@ fn try_cmd(macro_arg: TokenStream) -> Result<TokenStream> {
     }
 
     Ok(res)
+}
+
+fn into_literal(ts: &TokenTree) -> Option<Literal> {
+    match ts {
+        TokenTree::Literal(l) => Some(l.clone()),
+        TokenTree::Group(g) => match g.delimiter() {
+            Delimiter::None => match g.stream().into_iter().collect::<Vec<_>>().as_slice() {
+                [TokenTree::Literal(l)] => Some(l.clone()),
+                _ => None,
+            },
+            Delimiter::Parenthesis | Delimiter::Brace | Delimiter::Bracket => None,
+        },
+        _ => None,
+    }
 }
 
 fn trim_decorations(s: &str) -> &str {

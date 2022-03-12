@@ -1,50 +1,52 @@
 use std::collections::BTreeMap;
 
-use xshell::{cmd, pushenv};
+use xshell::cmd;
 
 use crate::setup;
 
 #[test]
 fn test_env() {
-    setup();
+    let sh = setup();
 
     let v1 = "xshell_test_123";
     let v2 = "xshell_test_456";
 
-    assert_env(cmd!("echo_env {v1}").env(v1, "123"), &[(v1, Some("123"))]);
+    assert_env(cmd!(sh, "xecho -$ {v1}").env(v1, "123"), &[(v1, Some("123"))]);
 
     assert_env(
-        cmd!("echo_env {v1} {v2}").envs([(v1, "123"), (v2, "456")].iter().copied()),
+        cmd!(sh, "xecho -$ {v1} {v2}").envs([(v1, "123"), (v2, "456")].iter().copied()),
         &[(v1, Some("123")), (v2, Some("456"))],
     );
     assert_env(
-        cmd!("echo_env {v1} {v2}").envs([(v1, "123"), (v2, "456")].iter().copied()).env_remove(v2),
+        cmd!(sh, "xecho -$ {v1} {v2}")
+            .envs([(v1, "123"), (v2, "456")].iter().copied())
+            .env_remove(v2),
         &[(v1, Some("123")), (v2, None)],
     );
     assert_env(
-        cmd!("echo_env {v1} {v2}")
+        cmd!(sh, "xecho -$ {v1} {v2}")
             .envs([(v1, "123"), (v2, "456")].iter().copied())
             .env_remove("nothing"),
         &[(v1, Some("123")), (v2, Some("456"))],
     );
 
-    let _g1 = pushenv(v1, "foobar");
-    let _g2 = pushenv(v2, "quark");
+    let _g1 = sh.push_env(v1, "foobar");
+    let _g2 = sh.push_env(v2, "quark");
 
-    assert_env(cmd!("echo_env {v1} {v2}"), &[(v1, Some("foobar")), (v2, Some("quark"))]);
+    assert_env(cmd!(sh, "xecho -$ {v1} {v2}"), &[(v1, Some("foobar")), (v2, Some("quark"))]);
 
     assert_env(
-        cmd!("echo_env {v1} {v2}").env(v1, "wombo"),
+        cmd!(sh, "xecho -$ {v1} {v2}").env(v1, "wombo"),
         &[(v1, Some("wombo")), (v2, Some("quark"))],
     );
 
-    assert_env(cmd!("echo_env {v1} {v2}").env_remove(v1), &[(v1, None), (v2, Some("quark"))]);
+    assert_env(cmd!(sh, "xecho -$ {v1} {v2}").env_remove(v1), &[(v1, None), (v2, Some("quark"))]);
     assert_env(
-        cmd!("echo_env {v1} {v2}").env_remove(v1).env(v1, "baz"),
+        cmd!(sh, "xecho -$ {v1} {v2}").env_remove(v1).env(v1, "baz"),
         &[(v1, Some("baz")), (v2, Some("quark"))],
     );
     assert_env(
-        cmd!("echo_env {v1} {v2}").env(v1, "baz").env_remove(v1),
+        cmd!(sh, "xecho -$ {v1} {v2}").env(v1, "baz").env_remove(v1),
         &[(v1, None), (v2, Some("quark"))],
     );
 }
@@ -52,45 +54,50 @@ fn test_env() {
 #[test]
 #[cfg(not(windows))]
 fn test_env_clear() {
-    setup();
+    let sh = setup();
 
     let v1 = "xshell_test_123";
     let v2 = "xshell_test_456";
 
-    let echo_env = format!("./mock_bin/echo_env{}", std::env::consts::EXE_SUFFIX);
+    let xecho = format!("./mock_bin/xecho{}", std::env::consts::EXE_SUFFIX);
 
     assert_env(
-        cmd!("{echo_env} {v1} {v2}").envs([(v1, "123"), (v2, "456")].iter().copied()).env_clear(),
+        cmd!(sh, "{xecho} -$ {v1} {v2}")
+            .envs([(v1, "123"), (v2, "456")].iter().copied())
+            .env_clear(),
         &[(v1, None), (v2, None)],
     );
     assert_env(
-        cmd!("{echo_env} {v1} {v2}")
+        cmd!(sh, "{xecho} -$ {v1} {v2}")
             .envs([(v1, "123"), (v2, "456")].iter().copied())
             .env_clear()
             .env(v1, "789"),
         &[(v1, Some("789")), (v2, None)],
     );
 
-    let _g1 = pushenv(v1, "foobar");
-    let _g2 = pushenv(v2, "quark");
+    let _g1 = sh.push_env(v1, "foobar");
+    let _g2 = sh.push_env(v2, "quark");
 
-    assert_env(cmd!("{echo_env} {v1} {v2}").env_clear(), &[(v1, None), (v2, None)]);
+    assert_env(cmd!(sh, "{xecho} -$ {v1} {v2}").env_clear(), &[(v1, None), (v2, None)]);
     assert_env(
-        cmd!("{echo_env} {v1} {v2}").env_clear().env(v1, "baz"),
+        cmd!(sh, "{xecho} -$ {v1} {v2}").env_clear().env(v1, "baz"),
         &[(v1, Some("baz")), (v2, None)],
     );
-    assert_env(cmd!("{echo_env} {v1} {v2}").env(v1, "baz").env_clear(), &[(v1, None), (v2, None)]);
+    assert_env(
+        cmd!(sh, "{xecho} -$ {v1} {v2}").env(v1, "baz").env_clear(),
+        &[(v1, None), (v2, None)],
+    );
 }
 
 #[track_caller]
-fn assert_env(echo_env_cmd: xshell::Cmd, want_env: &[(&str, Option<&str>)]) {
-    let output = echo_env_cmd.output().unwrap();
+fn assert_env(xecho_env_cmd: xshell::Cmd, want_env: &[(&str, Option<&str>)]) {
+    let output = xecho_env_cmd.output().unwrap();
     let env = String::from_utf8_lossy(&output.stdout)
         .lines()
         .filter(|line| !line.is_empty())
         .map(|line| {
             let (key, val) = split_once(line, '=').unwrap_or_else(|| {
-                panic!("failed to parse line from `echo_env` output: {:?}", line)
+                panic!("failed to parse line from `xecho -$` output: {:?}", line)
             });
             (key.to_owned(), val.to_owned())
         })
