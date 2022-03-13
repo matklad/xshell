@@ -6,7 +6,7 @@ use xshell::{cmd, Shell};
 fn fixed_cost_compile_times() {
     let sh = Shell::new().unwrap();
 
-    let _p = sh.push_dir("cbench");
+    let _p = sh.push_dir("tests/data");
     let baseline = compile_bench(&sh, "baseline");
     let _ducted = compile_bench(&sh, "ducted");
     let xshelled = compile_bench(&sh, "xshelled");

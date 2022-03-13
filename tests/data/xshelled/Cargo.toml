@@ -6,4 +6,4 @@ edition = "2018"
 [workspace]
 
 [dependencies]
-xshell = { path = "../../" }
+xshell = { path = "../../../" }
