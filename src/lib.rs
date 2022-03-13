@@ -374,7 +374,7 @@ macro_rules! cmd {
 ///
 /// # Example
 ///
-/// ```
+/// ```no_run
 /// use xshell::{cmd, Shell};
 ///
 /// let sh = Shell::new()?;
