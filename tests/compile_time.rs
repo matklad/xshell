@@ -8,8 +8,7 @@ fn fixed_cost_compile_times() {
 
     let _p = sh.push_dir("cbench");
     let baseline = compile_bench(&sh, "baseline");
-    // FIXME: Don't have internet rn, can't compile duct :-(
-    // let _ducted = compile_bench(&sh, "ducted");
+    let _ducted = compile_bench(&sh, "ducted");
     let xshelled = compile_bench(&sh, "xshelled");
     let ratio = (xshelled.as_millis() as f64) / (baseline.as_millis() as f64);
     assert!(1.0 < ratio && ratio < 10.0);
