@@ -66,7 +66,7 @@ fn publish(sh: &Shell) -> Result<()> {
     if current_branch == "master" && !tag_exists {
         cmd!(sh, "git tag v{version}").run()?;
 
-        let token = env::var("CRATES_IO_TOKEN").unwrap_or("DUMMY_TOKEN".to_string());
+        let token = sh.var("CRATES_IO_TOKEN").unwrap_or("DUMMY_TOKEN".to_string());
         {
             let _p = sh.push_dir("xshell-macros");
             cmd!(sh, "cargo publish --token {token}").run()?;
