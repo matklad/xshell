@@ -268,6 +268,23 @@ fn test_push_dir() {
 }
 
 #[test]
+fn test_push_and_change_dir() {
+    let sh = setup();
+
+    let d1 = sh.current_dir();
+    {
+        let _p = sh.push_dir("xshell-macros");
+        let d2 = sh.current_dir();
+        assert_eq!(d2, d1.join("xshell-macros"));
+        sh.change_dir("src");
+        let d3 = sh.current_dir();
+        assert_eq!(d3, d1.join("xshell-macros/src"));
+    }
+    let d5 = sh.current_dir();
+    assert_eq!(d5, d1);
+}
+
+#[test]
 fn push_dir_parent_dir() {
     let sh = setup();
 

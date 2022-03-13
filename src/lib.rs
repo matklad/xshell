@@ -425,7 +425,8 @@ impl Shell {
         self._change_dir(dir.as_ref())
     }
     fn _change_dir(&self, dir: &Path) {
-        *self.cwd.borrow_mut() = dir.to_path_buf()
+        let dir = self.path(dir);
+        *self.cwd.borrow_mut() = dir;
     }
 
     /// Temporary changes the working directory of this [`Shell`].

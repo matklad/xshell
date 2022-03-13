@@ -52,7 +52,6 @@ fn test_env() {
 }
 
 #[test]
-#[cfg(not(windows))]
 fn test_env_clear() {
     let sh = setup();
 
