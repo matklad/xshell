@@ -3,7 +3,7 @@
 //! It also serves as a real-world example, yay bootstrap!
 use std::{env, process, thread, time::Duration, time::Instant};
 
-use xshell::{cmd, pushd, read_file, rm_rf, Result};
+use xshell::{cmd, Result, Shell};
 
 fn main() {
     if let Err(err) = try_main() {
@@ -13,34 +13,35 @@ fn main() {
 }
 
 fn try_main() -> Result<()> {
+    let sh = Shell::new()?;
     if env::args().nth(1).as_deref() == Some("publish") {
-        publish()
+        publish(&sh)
     } else {
-        test()
+        test(&sh)
     }
 }
 
-fn test() -> Result<()> {
+fn test(sh: &Shell) -> Result<()> {
     // Can't delete oneself on Windows.
     if !cfg!(windows) {
-        rm_rf("./target")?;
+        sh.remove_path("./target")?;
     }
 
     {
         let _s = Section::new("BUILD");
-        cmd!("cargo test --workspace --no-run").run()?;
+        cmd!(sh, "cargo test --workspace --no-run").run()?;
     }
 
     {
         let _s = Section::new("TEST");
-        cmd!("cargo test --workspace").run()?;
+        cmd!(sh, "cargo test --workspace").run()?;
     }
     Ok(())
 }
 
-fn publish() -> Result<()> {
+fn publish(sh: &Shell) -> Result<()> {
     let _s = Section::new("PUBLISH");
-    let manifest = read_file("./Cargo.toml")?;
+    let manifest = sh.read_file("./Cargo.toml")?;
 
     let version = manifest
         .lines()
@@ -57,22 +58,22 @@ fn publish() -> Result<()> {
         .unwrap();
 
     let tag = format!("v{}", version);
-    let tags = cmd!("git tag --list").read()?;
+    let tags = cmd!(sh, "git tag --list").read()?;
     let tag_exists = tags.contains(&tag);
 
-    let current_branch = cmd!("git branch --show-current").read()?;
+    let current_branch = cmd!(sh, "git branch --show-current").read()?;
 
     if current_branch == "master" && !tag_exists {
-        cmd!("git tag v{version}").run()?;
+        cmd!(sh, "git tag v{version}").run()?;
 
-        let token = env::var("CRATES_IO_TOKEN").unwrap_or("DUMMY_TOKEN".to_string());
+        let token = sh.var("CRATES_IO_TOKEN").unwrap_or("DUMMY_TOKEN".to_string());
         {
-            let _p = pushd("xshell-macros")?;
-            cmd!("cargo publish --token {token}").run()?;
+            let _p = sh.push_dir("xshell-macros");
+            cmd!(sh, "cargo publish --token {token}").run()?;
             for _ in 0..100 {
                 thread::sleep(Duration::from_secs(3));
                 let err_msg =
-                    cmd!("cargo install xshell-macros --version {version} --bin non-existing")
+                    cmd!(sh, "cargo install xshell-macros --version {version} --bin non-existing")
                         .ignore_status()
                         .read_stderr()?;
 
@@ -84,8 +85,8 @@ fn publish() -> Result<()> {
                 }
             }
         }
-        cmd!("cargo publish --token {token}").run()?;
-        cmd!("git push --tags").run()?;
+        cmd!(sh, "cargo publish --token {token}").run()?;
+        cmd!(sh, "git push --tags").run()?;
     }
     Ok(())
 }

@@ -1,8 +1,3 @@
-# xshell: Making Rust a Better Bash
-
-`xshell` provides a set of cross-platform utilities for writing ergonomic "bash" scripts.
-
-```rust
 //! Clones a git repository and publishes it to crates.io.
 use xshell::{cmd, Shell};
 
@@ -31,6 +26,3 @@ fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
-```
-
-See [the docs](https://docs.rs/xshell) for more.
