@@ -314,6 +314,7 @@ impl Shell {
     ///
     /// All relative paths are interpreted relative to this directory, rather
     /// than [`std::env::current_dir`].
+    #[doc(alias = "pwd")]
     pub fn current_dir(&self) -> PathBuf {
         self.cwd.borrow().clone()
     }
@@ -324,6 +325,7 @@ impl Shell {
     /// value when dropped.
     ///
     /// Note that this doesn't affect [`std::env::current_dir`].
+    #[doc(alias = "pushd")]
     pub fn push_dir<P: AsRef<Path>>(&self, path: P) -> PushDir<'_> {
         self._push_dir(path.as_ref())
     }
@@ -380,6 +382,7 @@ impl Shell {
 
     // region:fs
     /// Read the entire contents of a file into a string.
+    #[doc(alias = "cat")]
     pub fn read_file<P: AsRef<Path>>(&self, path: P) -> Result<String> {
         self._read_file(path.as_ref())
     }
@@ -399,6 +402,7 @@ impl Shell {
 
     /// Returns a sorted list of paths directly contained in the directory at
     /// `path`.
+    #[doc(alias = "ls")]
     pub fn read_dir<P: AsRef<Path>>(&self, path: P) -> Result<Vec<PathBuf>> {
         self._read_dir(path.as_ref())
     }
@@ -441,6 +445,7 @@ impl Shell {
     ///
     /// Otherwise, `dst` is a file or does not exist, and `src` will be copied into
     /// it.
+    #[doc(alias = "cp")]
     pub fn copy_file<S: AsRef<Path>, D: AsRef<Path>>(&self, src: S, dst: D) -> Result<()> {
         self._copy_file(src.as_ref(), dst.as_ref())
     }
@@ -462,6 +467,7 @@ impl Shell {
     }
 
     /// Hardlinks `src` to `dst`.
+    #[doc(alias = "ln")]
     pub fn hard_link<S: AsRef<Path>, D: AsRef<Path>>(&self, src: S, dst: D) -> Result<()> {
         self._hard_link(src.as_ref(), dst.as_ref())
     }
@@ -474,6 +480,7 @@ impl Shell {
     /// Creates the specified directory.
     ///
     /// All intermediate directories will also be created.
+    #[doc(alias("mkdir_p", "mkdir"))]
     pub fn create_dir<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf> {
         self._create_dir(path.as_ref())
     }
@@ -493,6 +500,7 @@ impl Shell {
     ///
     /// Note that this is an **insecure method** -- any other process on the
     /// system will be able to read the data.
+    #[doc(alias = "mktemp")]
     pub fn create_temp_dir(&self) -> Result<TempDir> {
         let base = std::env::temp_dir();
         self.create_dir(&base)?;
@@ -512,6 +520,7 @@ impl Shell {
     }
 
     /// Removes the file or directory at the given path.
+    #[doc(alias("rm_rf", "rm"))]
     pub fn remove_path<P: AsRef<Path>>(&self, path: P) -> Result<()> {
         self._remove_path(path.as_ref())
     }
@@ -531,51 +540,6 @@ impl Shell {
     fn path(&self, p: &Path) -> PathBuf {
         let cd = self.cwd.borrow();
         cd.join(p)
-    }
-}
-
-impl Shell {
-    /// Alias for [`Shell::push_dir`] and a rough equivalent of the `pushd` UNIX
-    /// command.
-    ///
-    /// If in doubt, prefer [`Shell::push_dir`] insted.
-    pub fn pushd<P: AsRef<Path>>(&self, path: P) -> PushDir<'_> {
-        self._push_dir(path.as_ref())
-    }
-    /// Alias for [`Shell::current_dir`] and a rough equivalent of the `pwd`
-    /// UNIX command.
-    ///
-    /// If in doubt, prefer [`Shell::current_dir`] insted.
-    pub fn cwd(&self) -> PathBuf {
-        self.current_dir()
-    }
-    /// Alias for [`Shell::hard_link`] and a rough equivalent of the `ln`
-    /// UNIX command.
-    ///
-    /// If in doubt, prefer [`Shell::hard_link`] insted.
-    pub fn ln<S: AsRef<Path>, D: AsRef<Path>>(&self, src: S, dst: D) -> Result<()> {
-        self._hard_link(src.as_ref(), dst.as_ref())
-    }
-    /// Alias for [`Shell::create_dir`] and a rough equivalent of the `mkdir -p`
-    /// UNIX command.
-    ///
-    /// If in doubt, prefer [`Shell::create_dir`] insted.
-    pub fn mkdir_p<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf> {
-        self._create_dir(path.as_ref())
-    }
-    /// Alias for [`Shell::create_temp_dir`] and a rough equivalent of the `mktemp`
-    /// UNIX command.
-    ///
-    /// If in doubt, prefer [`Shell::create_temp_dir`] insted.
-    pub fn mktemp(&self) -> Result<TempDir> {
-        self.create_temp_dir()
-    }
-    /// Alias for [`Shell::remove_path`] and a rough equivalent of the `rm -rf`
-    /// UNIX command.
-    ///
-    /// If in doubt, prefer [`Shell::remove_path`] insted.
-    pub fn rm_rf<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-        self._remove_path(path.as_ref())
     }
 }
 
