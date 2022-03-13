@@ -59,7 +59,7 @@ fn publish(sh: &Shell) -> Result<()> {
 
     let tag = format!("v{}", version);
     let tags = cmd!(sh, "git tag --list").read()?;
-    let tag_exists = tags.contains(&tag);
+    let tag_exists = tags.split_ascii_whitespace().any(|it| it == &tag);
 
     let current_branch = cmd!(sh, "git branch --show-current").read()?;
 
