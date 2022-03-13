@@ -1,6 +1,9 @@
 # xshell: Making Rust a Better Bash
 
-`xshell` provides a set of cross-platform utilities for writing ergonomic "bash" scripts.
+`xshell` provides a set of cross-platform utilities for writing cross-platform
+and ergonomic "bash" scripts.
+
+## Example
 
 ```rust
 //! Clones a git repository and publishes it to crates.io.
