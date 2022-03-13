@@ -301,6 +301,64 @@ pub use crate::error::{Error, Result};
 #[doc(hidden)]
 pub use xshell_macros::__cmd;
 
+/// Constructs a [`Cmd`] from the given string.
+///
+/// # Examples
+///
+/// Basic:
+///
+/// ```no_run
+/// # use xshell::{cmd, Shell};
+/// let sh = Shell::new()?;
+/// cmd!(sh, "echo hello world").run()?;
+/// # Ok::<(), xshell::Error>(())
+/// ```
+///
+/// Interpolaton:
+///
+/// ```
+/// # use xshell::{cmd, Shell}; let sh = Shell::new()?;
+/// let greeting = "hello world";
+/// let c = cmd!(sh, "echo {greeting}");
+/// assert_eq!(c.to_string(), r#"echo "hello world""#);
+///
+/// let c = cmd!(sh, "echo '{greeting}'");
+/// assert_eq!(c.to_string(), r#"echo {greeting}"#);
+///
+/// let c = cmd!(sh, "echo {greeting}!");
+/// assert_eq!(c.to_string(), r#"echo "hello world!""#);
+///
+/// let c = cmd!(sh, "echo 'spaces '{greeting}' around'");
+/// assert_eq!(c.to_string(), r#"echo "spaces hello world around""#);
+///
+/// # Ok::<(), xshell::Error>(())
+/// ```
+///
+/// Splat Interpolaton:
+///
+/// ```
+/// # use xshell::{cmd, Shell}; let sh = Shell::new()?;
+/// let args = ["hello", "world"];
+/// let c = cmd!(sh, "echo {args...}");
+/// assert_eq!(c.to_string(), r#"echo hello world"#);
+///
+/// let arg1: Option<&str> = Some("hello");
+/// let arg2: Option<&str> = None;
+/// let c = cmd!(sh, "echo {arg1...} {arg2...}");
+/// assert_eq!(c.to_string(), r#"echo hello"#);
+/// # Ok::<(), xshell::Error>(())
+/// ```
+#[macro_export]
+macro_rules! cmd {
+    ($sh:expr, $cmd:literal) => {{
+        #[cfg(trick_rust_analyzer_into_highlighting_interpolated_bits)]
+        format_args!($cmd);
+        let f = |progn| $sh.cmd(progn);
+        let cmd: $crate::Cmd = $crate::__cmd!(f $cmd);
+        cmd
+    }};
+}
+
 /// A `Shell` is the main API entry point.
 ///
 /// Almost all of the crate's functionality is available as methods of the
@@ -1018,18 +1076,6 @@ impl Drop for TempDir {
     fn drop(&mut self) {
         let _ = remove_dir_all(&self.path);
     }
-}
-
-/// Constructs a [`Cmd`] from the given string.
-#[macro_export]
-macro_rules! cmd {
-    ($sh:expr, $cmd:literal) => {{
-        #[cfg(trick_rust_analyzer_into_highlighting_interpolated_bits)]
-        format_args!($cmd);
-        let f = |progn| $sh.cmd(progn);
-        let cmd: $crate::Cmd = $crate::__cmd!(f $cmd);
-        cmd
-    }};
 }
 
 #[cfg(not(windows))]
