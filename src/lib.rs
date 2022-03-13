@@ -51,11 +51,11 @@
 //! }
 //! ```
 //!
-//! Only two imports are needed -- [`Shell`] struct and [`cmd!`] macro. By
-//! convention, an instance of the [`Shell`] is stored in a variable named `sh`.
-//! All the API is available as methods, so a short name helps here. For
+//! Only two imports are needed -- the [`Shell`] struct the and [`cmd!`] macro.
+//! By convention, an instance of a [`Shell`] is stored in a variable named
+//! `sh`. All the API is available as methods, so a short name helps here. For
 //! "scripts", the [`anyhow`](https://docs.rs/anyhow) crate is a great choice
-//!  for error-handling library.
+//! for an error-handling library.
 //!
 //! Next, clone the repository:
 //!
@@ -80,7 +80,7 @@
 //! Resolving deltas: 100% (327/327), done.
 //! ```
 //!
-//! Note that the command itself is echoed to stderr (`$ git ...` bit in the
+//! Note that the command itself is echoed to stderr (the `$ git ...` bit in the
 //! output). You can use [`Cmd::quiet`] to override this behavior:
 //!
 //! ```no_run
@@ -92,7 +92,7 @@
 //! ```
 //!
 //! To make the code more general, let's use command interpolation to extract
-//! username and repository:
+//! the username and the repository:
 //!
 //! ```no_run
 //! # use xshell::{Shell, cmd}; let sh = Shell::new().unwrap();
@@ -185,7 +185,7 @@
 //! # Ok::<(), xshell::Error>(())
 //! ```
 //!
-//! Putting everything altogether, here's the whole script
+//! Putting everything altogether, here's the whole script:
 //!
 //! ```no_run
 //! use xshell::{cmd, Shell};
@@ -217,8 +217,8 @@
 //! }
 //! ```
 //!
-//! `xshell` uses a similar script to automatically publish itself to crates.io
-//! when the version in Cargo.toml changes:
+//! `xshell` itself uses a similar script to automatically publish oneself to
+//! crates.io when the version in Cargo.toml changes:
 //!
 //! <https://github.com/matklad/xshell/blob/master/examples/ci.rs>
 //!
@@ -268,18 +268,6 @@
 //!
 //! To make IDEs infer correct types without expanding proc-macro, it is wrapped
 //! into a declarative macro which supplies type hints.
-//!
-//! # Naming
-//!
-//! xshell is an ex-shell, for those who grew tired of bash.<br>
-//! xshell is an x-platform shell, for those who don't want to run `build.sh` on
-//! windows.<br>
-//! xshell is built for [`xtask`](https://github.com/matklad/cargo-xtask).<br>
-//! xshell uses x-traordinary level of
-//! [trickery](https://github.com/matklad/xshell/blob/843df7cd5b7d69fc9d2b884dc0852598335718fe/src/lib.rs#L233-L234),
-//! just like `xtask`
-//! [does](https://matklad.github.io/2018/01/03/make-your-own-make.html).
-
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
 #![deny(rust_2018_idioms)]
@@ -718,7 +706,7 @@ impl Drop for PushEnv<'_> {
     }
 }
 
-/// A builder object for executing a subprocess.
+/// A builder object for constructing a subprocess.
 ///
 /// A [`Cmd`] is usually created with the [`cmd!`] macro. The command exists
 /// within a context of a [`Shell`] and uses its working directory and
@@ -873,10 +861,6 @@ impl<'a> Cmd<'a> {
     }
 
     /// Removes all of the environment variables from this command.
-    ///
-    /// Note that on Windows some environmental variables are required for
-    /// process spawning. See <https://github.com/rust-lang/rust/issues/31259>.
-    // FIXME: this should just work on windows.
     pub fn env_clear(mut self) -> Cmd<'a> {
         self.data.env_changes.push(EnvChange::Clear);
         self
