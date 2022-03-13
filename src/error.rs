@@ -87,8 +87,8 @@ impl fmt::Display for Error {
             },
             ErrorKind::CmdIo { err, cmd } => {
                 if err.kind() == io::ErrorKind::NotFound {
-                    let progn = cmd.prog.display();
-                    write!(f, "command not found: `{progn}`")
+                    let prog = cmd.prog.display();
+                    write!(f, "command not found: `{prog}`")
                 } else {
                     write!(f, "io error when running command `{cmd}`: {err}")
                 }

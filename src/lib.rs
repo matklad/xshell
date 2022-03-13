@@ -1,4 +1,4 @@
-//! xshell is a swiss-army knife for writtng cross-platform "bash" scripts in
+//! xshell is a swiss-army knife for writing cross-platform "bash" scripts in
 //! Rust.
 //!
 //! It doesn't use the shell directly, but rather re-implements parts of
@@ -19,7 +19,7 @@
 //!
 //! **Goals:**
 //!
-//! * Ergonomics and dwim ("do what I mean"): `cmd!` macro supports
+//! * Ergonomics and DWIM ("do what I mean"): `cmd!` macro supports
 //!   interpolation, writing to a file automatically creates parent directories,
 //!   etc.
 //! * Reliability: no [shell injection] by construction, good error messages
@@ -33,7 +33,7 @@
 //! repository and publish it as a crates.io crate. The script will do the
 //! following:
 //!
-//! 1. Clone the repoitory.
+//! 1. Clone the repository.
 //! 2. `cd` into the repository's directory.
 //! 3. Run the tests.
 //! 4. Create a git tag using a version from `Cargo.toml`.
@@ -67,7 +67,7 @@
 //!
 //! The [`cmd!`] macro provides a convenient syntax for creating a command --
 //! the [`Cmd`] struct. The [`Cmd::run`] method runs the command as if you
-//! typped it into the shell. The whole program outputs:
+//! typed it into the shell. The whole program outputs:
 //!
 //! ```console
 //! $ git clone https://github.com/matklad/xshell.git
@@ -108,7 +108,7 @@
 //!
 //! ```no_run
 //! # use xshell::{Shell, cmd}; let sh = Shell::new().unwrap();
-//! let file = "contrains a space";
+//! let file = "contains a space";
 //! cmd!(sh, "touch {file}").run()?;
 //! # Ok::<(), xshell::Error>(())
 //! ```
@@ -134,7 +134,7 @@
 //! # Ok::<(), xshell::Error>(())
 //! ```
 //!
-//! Note how the so-called splat syntax (`...`) is used to inerpolate an
+//! Note how the so-called splat syntax (`...`) is used to interpolate an
 //! iterable of arguments.
 //!
 //! Next, read the Cargo.toml so that we can fetch crate' declared version:
@@ -268,6 +268,7 @@
 //!
 //! To make IDEs infer correct types without expanding proc-macro, it is wrapped
 //! into a declarative macro which supplies type hints.
+
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
 #![deny(rust_2018_idioms)]
@@ -304,7 +305,7 @@ pub use xshell_macros::__cmd;
 /// # Ok::<(), xshell::Error>(())
 /// ```
 ///
-/// Interpolaton:
+/// Interpolation:
 ///
 /// ```
 /// # use xshell::{cmd, Shell}; let sh = Shell::new()?;
@@ -324,7 +325,7 @@ pub use xshell_macros::__cmd;
 /// # Ok::<(), xshell::Error>(())
 /// ```
 ///
-/// Splat Interpolaton:
+/// Splat interpolation:
 ///
 /// ```
 /// # use xshell::{cmd, Shell}; let sh = Shell::new()?;
@@ -343,7 +344,7 @@ macro_rules! cmd {
     ($sh:expr, $cmd:literal) => {{
         #[cfg(trick_rust_analyzer_into_highlighting_interpolated_bits)]
         format_args!($cmd);
-        let f = |progn| $sh.cmd(progn);
+        let f = |prog| $sh.cmd(prog);
         let cmd: $crate::Cmd = $crate::__cmd!(f $cmd);
         cmd
     }};
@@ -476,7 +477,7 @@ impl Shell {
     /// Temporary sets the value of `key` environment variable for this
     /// [`Shell`] to `val`.
     ///
-    /// Returns a RAII guard which resores the old environment when dropped.
+    /// Returns a RAII guard which restores the old environment when dropped.
     ///
     /// Note that this doesn't affect [`std::env::var`].
     pub fn push_env<K: AsRef<OsStr>, V: AsRef<OsStr>>(&self, key: K, val: V) -> PushEnv<'_> {
@@ -652,7 +653,7 @@ impl Shell {
 
 /// RAII guard returned from [`Shell::push_dir`].
 ///
-/// Dropping `PushDir` restores the workind directory of the [`Shell`] to the
+/// Dropping `PushDir` restores the working directory of the [`Shell`] to the
 /// old value.
 #[derive(Debug)]
 #[must_use]
@@ -746,7 +747,7 @@ struct CmdData {
 // We just store a list of functions to call on the `Command` — the alternative
 // would require mirroring the logic that `std::process::Command` (or rather
 // `sys_common::CommandEnvs`) uses, which is moderately complex, involves
-// special-casing `PATH`, and plausbly could change.
+// special-casing `PATH`, and plausibly could change.
 #[derive(Debug, Clone)]
 enum EnvChange {
     Set(OsString, OsString),
@@ -787,9 +788,9 @@ impl From<Cmd<'_>> for Command {
 }
 
 impl<'a> Cmd<'a> {
-    fn new(shell: &'a Shell, progn: &Path) -> Cmd<'a> {
+    fn new(shell: &'a Shell, prog: &Path) -> Cmd<'a> {
         let mut data = CmdData::default();
-        data.prog = progn.to_path_buf();
+        data.prog = prog.to_path_buf();
         Cmd { shell, data }
     }
 
@@ -878,7 +879,7 @@ impl<'a> Cmd<'a> {
         self.data.ignore_status = yes;
     }
 
-    /// Don't echo the command iteslf to stderr.
+    /// Don't echo the command itself to stderr.
     ///
     /// By default, the command itself will be printed to stderr when executed via [`Cmd::run`].
     pub fn quiet(mut self) -> Cmd<'a> {
@@ -927,7 +928,7 @@ impl<'a> Cmd<'a> {
 
     /// Ignores the standard output stream of the process.
     ///
-    /// This is equivalent redirrecting stderr to `/dev/null`. By default, the
+    /// This is equivalent redirecting stderr to `/dev/null`. By default, the
     /// stderr is inherited or captured.
     pub fn ignore_stderr(mut self) -> Cmd<'a> {
         self.set_ignore_stderr(true);
