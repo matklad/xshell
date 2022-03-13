@@ -1,20 +1,13 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
-
 use xshell::{cmd, Shell};
 
 #[track_caller]
 fn check(code: &str, err_msg: &str) {
     let sh = Shell::new().unwrap();
+    let xshell_dir = sh.current_dir();
+    let temp_dir = sh.create_temp_dir().unwrap();
+    sh.change_dir(temp_dir.path());
 
-    static CNT: AtomicUsize = AtomicUsize::new(0);
-    let cnt = CNT.fetch_add(1, Ordering::Relaxed);
-
-    let dir = sh.create_dir(format!("./target/cf{cnt}")).unwrap();
-    let _p = sh.push_dir(&dir);
-    let _e = sh.push_env("CARGO_TARGET_DIR", dir.join("target"));
-
-    sh.write_file(
-        "Cargo.toml",
+    let manifest = format!(
         r#"
 [package]
 name = "cftest"
@@ -26,10 +19,9 @@ edition = "2018"
 path = "main.rs"
 
 [dependencies]
-xshell = { path = "../../" }
+xshell = {{ path = {xshell_dir:?} }}
 "#,
-    )
-    .unwrap();
+    );
 
     let snip = format!(
         "
@@ -40,6 +32,8 @@ pub fn f() {{
 }}
 "
     );
+
+    sh.write_file("Cargo.toml", manifest).unwrap();
     sh.write_file("main.rs", snip).unwrap();
 
     let stderr = cmd!(sh, "cargo build").ignore_status().read_stderr().unwrap();
@@ -49,7 +43,6 @@ pub fn f() {{
         err_msg,
         stderr
     );
-    sh.remove_path(&dir).unwrap();
 }
 
 #[test]
