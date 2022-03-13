@@ -59,7 +59,7 @@ fn test_env_clear() {
     let v1 = "xshell_test_123";
     let v2 = "xshell_test_456";
 
-    let xecho = format!("./mock_bin/xecho{}", std::env::consts::EXE_SUFFIX);
+    let xecho = format!("./target/xecho{}", std::env::consts::EXE_SUFFIX);
 
     assert_env(
         cmd!(sh, "{xecho} -$ {v1} {v2}")

@@ -17,17 +17,13 @@ fn setup() -> Shell {
 
     fn install_mock_binaries() -> xshell::Result<()> {
         let sh = Shell::new()?;
-        let mock_bin = sh.current_dir().join("./mock_bin");
-        let _d = sh.push_dir(&mock_bin);
-        for path in sh.read_dir(".")? {
-            if path.extension().unwrap_or_default() == "rs" {
-                cmd!(sh, "rustc {path}").quiet().run()?
-            }
-        }
+        let xecho_src = sh.current_dir().join("./tests/data/xecho.rs");
+        let xecho = sh.current_dir().join("./target/xecho");
+        cmd!(sh, "rustc {xecho_src} -o {xecho}").quiet().run()?;
         let old_path = std::env::var("PATH").unwrap_or_default();
         let new_path = {
             let mut path = std::env::split_paths(&old_path).collect::<Vec<_>>();
-            path.insert(0, mock_bin);
+            path.insert(0, sh.current_dir().join("./target"));
             std::env::join_paths(path).unwrap()
         };
         std::env::set_var("PATH", new_path);
