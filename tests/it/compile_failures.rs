@@ -7,12 +7,11 @@ fn check(code: &str, err_msg: &str) {
     let sh = Shell::new().unwrap();
 
     static CNT: AtomicUsize = AtomicUsize::new(0);
-
-    let cnt = CNT.load(Ordering::Relaxed);
-    CNT.fetch_add(1, Ordering::Relaxed);
+    let cnt = CNT.fetch_add(1, Ordering::Relaxed);
 
     let dir = sh.create_dir(format!("./target/cf{cnt}")).unwrap();
     let _p = sh.push_dir(&dir);
+    let _e = sh.push_env("CARGO_TARGET_DIR", dir.join("target"));
 
     sh.write_file(
         "Cargo.toml",
