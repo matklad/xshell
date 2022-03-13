@@ -95,7 +95,7 @@ fn assert_env(xecho_env_cmd: xshell::Cmd, want_env: &[(&str, Option<&str>)]) {
         .lines()
         .filter(|line| !line.is_empty())
         .map(|line| {
-            let (key, val) = split_once(line, '=').unwrap_or_else(|| {
+            let (key, val) = line.split_once('=').unwrap_or_else(|| {
                 panic!("failed to parse line from `xecho -$` output: {:?}", line)
             });
             (key.to_owned(), val.to_owned())
@@ -127,10 +127,4 @@ fn check_env(env: &BTreeMap<String, String>, wanted_env: &[(&str, Option<&str>)]
         "env didn't match (see stderr for cleaner output):\nsaw: {:?}\n\nwanted: {:?}",
         env, wanted_env,
     );
-}
-
-// Remove when bumping MSRV to 1.52.0
-fn split_once(line: &str, arg: char) -> Option<(&str, &str)> {
-    let idx = line.find(arg)?;
-    Some((&line[..idx], &line[idx + arg.len_utf8()..]))
 }
