@@ -149,7 +149,7 @@ fn exit_status_signal() {
     let sh = setup();
 
     let err = cmd!(sh, "xecho -s").read().unwrap_err();
-    assert_eq!(err.to_string(), "command was terminated by a signal `xecho -s`");
+    assert_eq!(err.to_string(), "command was terminated by a signal `xecho -s`: 9");
 }
 
 #[test]

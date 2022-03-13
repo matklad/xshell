@@ -74,6 +74,15 @@ impl fmt::Display for Error {
             }
             ErrorKind::CmdStatus { cmd, status } => match status.code() {
                 Some(code) => write!(f, "command exited with non-zero code `{cmd}`: {code}"),
+                #[cfg(unix)]
+                None => {
+                    use std::os::unix::process::ExitStatusExt;
+                    match status.signal() {
+                        Some(sig) => write!(f, "command was terminated by a signal `{cmd}`: {sig}"),
+                        None => write!(f, "command was terminated by a signal `{cmd}`"),
+                    }
+                }
+                #[cfg(not(unix))]
                 None => write!(f, "command was terminated by a signal `{cmd}`"),
             },
             ErrorKind::CmdIo { err, cmd } => {
