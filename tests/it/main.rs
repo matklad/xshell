@@ -151,6 +151,14 @@ fn exit_status() {
 }
 
 #[test]
+fn exit_status_signal() {
+    let sh = setup();
+
+    let err = cmd!(sh, "xecho -s").read().unwrap_err();
+    assert_eq!(err.to_string(), "command was terminated by a signal `xecho -s`");
+}
+
+#[test]
 fn ignore_status() {
     let sh = setup();
 
@@ -164,6 +172,14 @@ fn ignore_status_no_such_command() {
 
     let err = cmd!(sh, "xecho-f").ignore_status().read().unwrap_err();
     assert_eq!(err.to_string(), "command not found: `xecho-f`");
+}
+
+#[test]
+fn ignore_status_signal() {
+    let sh = setup();
+
+    let output = cmd!(sh, "xecho -s dead").ignore_status().read().unwrap();
+    assert_eq!(output, "dead");
 }
 
 #[test]
