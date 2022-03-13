@@ -15,14 +15,15 @@ fn fixed_cost_compile_times() {
 
     fn compile_bench(sh: &Shell, name: &str) -> Duration {
         let _p = sh.push_dir(name);
-        cmd!(sh, "cargo build -q").read().unwrap();
+        let cargo_build = cmd!(sh, "cargo build -q");
+        cargo_build.read().unwrap();
 
         let n = 5;
         let mut times = Vec::new();
         for _ in 0..n {
             sh.remove_path("./target").unwrap();
             let start = Instant::now();
-            cmd!(sh, "cargo build -q").read().unwrap();
+            cargo_build.read().unwrap();
             let elapsed = start.elapsed();
             times.push(elapsed);
         }

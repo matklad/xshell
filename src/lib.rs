@@ -288,6 +288,7 @@ mod error;
 
 use std::{
     cell::RefCell,
+    collections::HashMap,
     env::{self, current_dir, VarError},
     ffi::{OsStr, OsString},
     fmt, fs,
@@ -390,7 +391,7 @@ macro_rules! cmd {
 #[derive(Debug)]
 pub struct Shell {
     cwd: RefCell<PathBuf>,
-    env: RefCell<Vec<(OsString, OsString)>>,
+    env: RefCell<HashMap<OsString, OsString>>,
 }
 
 impl std::panic::UnwindSafe for Shell {}
@@ -403,7 +404,7 @@ impl Shell {
     pub fn new() -> Result<Shell> {
         let cwd = current_dir().map_err(Error::new_current_dir)?;
         let cwd = RefCell::new(cwd);
-        let env = RefCell::new(Vec::new());
+        let env = RefCell::new(HashMap::new());
         Ok(Shell { cwd, env })
     }
 
@@ -460,6 +461,7 @@ impl Shell {
         }
         .map_err(|err| Error::new_var(err, key.to_os_string()))
     }
+
     /// Fetches the environmental variable `key` for this [`Shell`] as
     /// [`OsString`] Returns [`None`] if the variable is not set.
     ///
@@ -469,13 +471,20 @@ impl Shell {
         self._var_os(key.as_ref())
     }
     fn _var_os(&self, key: &OsStr) -> Option<OsString> {
-        let env = self.env.borrow_mut();
-        let kv = env.iter().rev().find(|(k, _v)| *k == key);
-        match kv {
-            Some((_k, v)) => Some(v.clone()),
-            None => env::var_os(key),
-        }
+        self.env.borrow().get(key).cloned().or_else(|| env::var_os(key))
     }
+
+    /// Sets the value of `key` environment variable for this [`Shell`] to
+    /// `val`.
+    ///
+    /// Note that this doesn't affect [`std::env::var`].
+    pub fn set_var<K: AsRef<OsStr>, V: AsRef<OsStr>>(&self, key: K, val: V) {
+        self._set_var(key.as_ref(), val.as_ref())
+    }
+    fn _set_var(&self, key: &OsStr, val: &OsStr) {
+        self.env.borrow_mut().insert(key.to_os_string(), val.to_os_string());
+    }
+
     /// Temporary sets the value of `key` environment variable for this
     /// [`Shell`] to `val`.
     ///
@@ -682,19 +691,30 @@ impl Drop for PushDir<'_> {
 #[derive(Debug)]
 #[must_use]
 pub struct PushEnv<'a> {
+    key: OsString,
+    old_value: Option<OsString>,
     shell: &'a Shell,
 }
 
 impl<'a> PushEnv<'a> {
     fn new(shell: &'a Shell, key: OsString, val: OsString) -> PushEnv<'a> {
-        shell.env.borrow_mut().push((key, val));
-        PushEnv { shell }
+        let old_value = shell.env.borrow_mut().insert(key.clone(), val);
+        PushEnv { shell, key, old_value }
     }
 }
 
 impl Drop for PushEnv<'_> {
     fn drop(&mut self) {
-        self.shell.env.borrow_mut().pop();
+        let mut env = self.shell.env.borrow_mut();
+        let key = mem::take(&mut self.key);
+        match self.old_value.take() {
+            Some(value) => {
+                env.insert(key, value);
+            }
+            None => {
+                env.remove(&key);
+            }
+        }
     }
 }
 

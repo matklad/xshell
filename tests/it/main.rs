@@ -8,27 +8,20 @@ use xshell::{cmd, Shell};
 
 fn setup() -> Shell {
     static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| {
-        if let Err(err) = install_mock_binaries() {
-            panic!("failed to install binaries from mock_bin: {}", err)
-        }
-    });
-    return Shell::new().unwrap();
 
-    fn install_mock_binaries() -> xshell::Result<()> {
-        let sh = Shell::new()?;
-        let xecho_src = sh.current_dir().join("./tests/data/xecho.rs");
-        let target_dir = sh.current_dir().join("./target/");
-        cmd!(sh, "rustc {xecho_src} --out-dir {target_dir}").quiet().run()?;
-        let old_path = std::env::var("PATH").unwrap_or_default();
-        let new_path = {
-            let mut path = std::env::split_paths(&old_path).collect::<Vec<_>>();
-            path.insert(0, sh.current_dir().join("./target"));
-            std::env::join_paths(path).unwrap()
-        };
-        std::env::set_var("PATH", new_path);
-        Ok(())
-    }
+    let sh = Shell::new().unwrap();
+    let xecho_src = sh.current_dir().join("./tests/data/xecho.rs");
+    let target_dir = sh.current_dir().join("./target/");
+
+    ONCE.call_once(|| {
+        cmd!(sh, "rustc {xecho_src} --out-dir {target_dir}")
+            .quiet()
+            .run()
+            .unwrap_or_else(|err| panic!("failed to install binaries from mock_bin: {}", err))
+    });
+
+    sh.set_var("PATH", target_dir);
+    sh
 }
 
 #[test]
@@ -298,7 +291,7 @@ fn push_dir_parent_dir() {
 const VAR: &str = "SPICA";
 
 #[test]
-fn test_pushenv() {
+fn test_push_env() {
     let sh = setup();
 
     let e1 = sh.var_os(VAR);
@@ -313,6 +306,23 @@ fn test_pushenv() {
         }
         let e4 = sh.var_os(VAR);
         assert_eq!(e4, e2);
+    }
+    let e5 = sh.var_os(VAR);
+    assert_eq!(e5, e1);
+}
+
+#[test]
+fn test_push_env_and_set_var() {
+    let sh = setup();
+
+    let e1 = sh.var_os(VAR);
+    {
+        let _e = sh.push_env(VAR, "1");
+        let e2 = sh.var_os(VAR);
+        assert_eq!(e2, Some("1".into()));
+        let _e = sh.set_var(VAR, "2");
+        let e3 = sh.var_os(VAR);
+        assert_eq!(e3, Some("2".into()));
     }
     let e5 = sh.var_os(VAR);
     assert_eq!(e5, e1);
