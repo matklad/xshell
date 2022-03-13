@@ -15,3 +15,6 @@ exclude = [".github/", "bors.toml", "rustfmt.toml", "cbench", "mock_bin/"]
 
 [dependencies]
 xshell-macros = { version = "=0.1.17", path = "./xshell-macros" }
+
+[dev-dependencies]
+anyhow = "1.0.56"

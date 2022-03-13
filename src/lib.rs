@@ -8,18 +8,13 @@
 //!
 //! Here's a quick example:
 //!
-//! ```
+//! ```no_run
 //! use xshell::{Shell, cmd};
 //!
-//! fn make_release() -> xshell::Result<()> {
-//!     let sh = Shell::new()?;
-//!     let version = sh.read_file("./version.txt")?;
-//!     let current_branch = cmd!(sh, "git branch --show-current").read()?;
-//!     if current_branch == "main" {
-//!         cmd!(sh, "git tag v{version}").run()?;
-//!     }
-//!     Ok(())
-//! }
+//! let sh = Shell::new()?;
+//! let branch = "main";
+//! let commit_hash = cmd!(sh, "git rev-parse {branch}").read()?;
+//! # Ok::<(), xshell::Error>(())
 //! ```
 //!
 //! **Goals:**
@@ -32,155 +27,199 @@
 //!   host environment, etc.
 //! * Frugality: fast compile times, few dependencies, low-tech API.
 //!
-//! # API Overview
+//! # Guide
 //!
-//! For a real-world example, see this crate's own CI script:
+//! For a short API overview, let's implement a script to clone a github
+//! repository and publish it as a crates.io crate. The script will do the
+//! following:
 //!
-//! [https://github.com/matklad/xshell/blob/master/examples/ci.rs](https://github.com/matklad/xshell/blob/master/examples/ci.rs)
+//! 1. Clone the repoitory.
+//! 2. `cd` into the repository's directory.
+//! 3. Run the tests.
+//! 4. Create a git tag using a version from `Cargo.toml`.
+//! 5. Publish the crate with an optional `--dry-run`.
 //!
-//! ## `cmd!` Macro
-//!
-//! Read output of the process into `String`. The final newline will be
-//! stripped.
-//!
-//! ```
-//! # use xshell::{Shell, cmd};
-//! let sh = Shell::new()?;
-//! let output = cmd!(sh, "date +%Y-%m-%d").read()?;
-//! assert!(output.as_str() > "1979-01-01");
-//! # Ok::<(), xshell::Error>(())
-//! ```
-//!
-//! If the exist status is non-zero, an error is returned.
-//!
-//! ```
-//! # use xshell::cmd; let sh = xshell::Shell::new()?;
-//! let err = cmd!(sh, "false").read().unwrap_err();
-//! assert!(err.to_string().starts_with("command exited with non-zero code `false`: 1"));
-//! # Ok::<(), xshell::Error>(())
-//! ```
-//!
-//! <hr>
-//!
-//! Run the process, inheriting stdout and stderr. The command is echoed to
-//! stderr.
-//!
-//! ```
-//! # use xshell::cmd; let sh = xshell::Shell::new()?;
-//! cmd!(sh, "echo hello!").run()?;
-//! # Ok::<(), xshell::Error>(())
-//! ```
-//!
-//! Output
-//!
-//! ```text
-//! $ echo hello!
-//! hello!
-//! ```
-//!
-//! <hr>
-//!
-//! Interpolation is supported via `{name}` syntax. Use `{name...}` to
-//! interpolate sequence of values.
-//!
-//! ```
-//! # use xshell::cmd; let sh = xshell::Shell::new()?;
-//! let greeting = "Guten Tag";
-//! let people = &["Spica", "Boarst", "Georgina"];
-//! assert_eq!(
-//!     cmd!(sh, "echo {greeting} {people...}").to_string(),
-//!     r#"echo "Guten Tag" Spica Boarst Georgina"#
-//! );
-//! # Ok::<(), xshell::Error>(())
-//! ```
-//!
-//! Note that the argument with a space is handled correctly. This is because
-//! `cmd!` macro parses the string template at compile time. The macro hands the
-//! interpolated values to the underlying `std::process::Command` as is and is
-//! not vulnerable to [shell injection].
-//!
-//! Single quotes in literal arguments are supported:
-//!
-//! ```
-//! # use xshell::cmd; let sh = xshell::Shell::new()?;
-//! assert_eq!(
-//!     cmd!(sh, "echo 'hello world'").to_string(),
-//!     r#"echo "hello world""#,
-//! );
-//! # Ok::<(), xshell::Error>(())
-//! ```
-//! Splat syntax is used for optional arguments idiom. Note the example with
-//! `Option`:
-//!
-//! ```
-//! # use xshell::cmd; let sh = xshell::Shell::new()?;
-//! let check = if true { &["--", "--check"] } else { &[][..] };
-//! assert_eq!(
-//!     cmd!(sh, "cargo fmt {check...}").to_string(),
-//!     "cargo fmt -- --check"
-//! );
-//!
-//! let dry_run = if true { Some("--dry-run") } else { None };
-//! assert_eq!(
-//!     cmd!(sh, "git push {dry_run...}").to_string(),
-//!     "git push --dry-run"
-//! );
-//! # Ok::<(), xshell::Error>(())
-//! ```
-//!
-//! <hr>
-//!
-//! xshell does not provide API for creating command pipelines. If you need
-//! pipelines, consider using [`duct`] instead. Alternatively, you can convert
-//! `xshell::Cmd` into [`std::process::Command`]:
-//!
-//! ```
-//! # use xshell::cmd; let sh = xshell::Shell::new()?;
-//! let command: std::process::Command = cmd!(sh, "echo 'hello world'").into();
-//! # Ok::<(), xshell::Error>(())
-//! ```
-//!
-//! ## Manipulating the Environment
-//!
-//! Instead of `cd` and `export`, xshell uses RAII based `push_dir` and
-//! `push_env`
-//!
-//! ```
-//! use xshell::Shell;
-//!
-//! let sh = Shell::new()?;
-//! let initial_dir = sh.current_dir();
-//! {
-//!     let _p = sh.push_dir("src");
-//!     assert_eq!(
-//!         sh.current_dir(),
-//!         initial_dir.join("src"),
-//!     );
-//! }
-//! assert_eq!(sh.current_dir(), initial_dir);
-//!
-//! assert!(sh.var("MY_VAR").is_err());
-//! let _e = sh.push_env("MY_VAR", "92");
-//! assert_eq!(
-//!     sh.var("MY_VAR").unwrap(),
-//!     "92",
-//! );
-//! # Ok::<(), xshell::Error>(())
-//! ```
-//!
-//! ## Working with Files
-//!
-//! `xshell` provides a number of file-manipulation utilites which are mostly
-//! wrappers around [`std::fs`] with better error messages and ergonomics:
+//! Start with the following skeleton:
 //!
 //! ```no_run
-//! use xshell::Shell;
+//! use xshell::{cmd, Shell};
 //!
-//! let sh = Shell::new()?;
-//! let err = sh.read_file("Cargo.taml").unwrap_err();
-//! assert_eq!(err.to_string(), "failed to read the file `Cargo.taml`: no such file or directory");
+//! fn main() -> anyhow::Result<()> {
+//!     let sh = Shell::new()?;
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! Only two imports are needed -- [`Shell`] struct and [`cmd!`] macro. By
+//! convention, an instance of the [`Shell`] is stored in a variable named `sh`.
+//! All the API is available as methods, so a short name helps here. For
+//! "scripts", the [`anyhow`](https://docs.rs/anyhow) crate is a great choice
+//!  for error-handling library.
+//!
+//! Next, clone the repository:
+//!
+//! ```no_run
+//! # use xshell::{Shell, cmd}; let sh = Shell::new().unwrap();
+//! cmd!(sh, "git clone https://github.com/matklad/xshell.git").run()?;
 //! # Ok::<(), xshell::Error>(())
 //! ```
+//!
+//! The [`cmd!`] macro provides a convenient syntax for creating a command --
+//! the [`Cmd`] struct. The [`Cmd::run`] method runs the command as if you
+//! typped it into the shell. The whole program outputs:
+//!
+//! ```console
+//! $ git clone https://github.com/matklad/xshell.git
+//! Cloning into 'xshell'...
+//! remote: Enumerating objects: 676, done.
+//! remote: Counting objects: 100% (220/220), done.
+//! remote: Compressing objects: 100% (123/123), done.
+//! remote: Total 676 (delta 106), reused 162 (delta 76), pack-reused 456
+//! Receiving objects: 100% (676/676), 136.80 KiB | 222.00 KiB/s, done.
+//! Resolving deltas: 100% (327/327), done.
+//! ```
+//!
+//! Note that the command itself is echoed to stderr (`$ git ...` bit in the
+//! output). You can use [`Cmd::quiet`] to override this behavior:
+//!
+//! ```no_run
+//! # use xshell::{Shell, cmd}; let sh = Shell::new().unwrap();
+//! cmd!(sh, "git clone https://github.com/matklad/xshell.git")
+//!     .quiet()
+//!     .run()?;
+//! # Ok::<(), xshell::Error>(())
+//! ```
+//!
+//! To make the code more general, let's use command interpolation to extract
+//! username and repository:
+//!
+//! ```no_run
+//! # use xshell::{Shell, cmd}; let sh = Shell::new().unwrap();
+//! let user = "matklad";
+//! let repo = "xshell";
+//! cmd!(sh, "git clone https://github.com/{user}/{repo}.git").run()?;
+//! # Ok::<(), xshell::Error>(())
+//! ```
+//!
+//! Note that the `cmd!` macro parses the command string at compile time, so you
+//! don't have to worry about escaping the arguments. For example, the following
+//! command "touches" a single file whose name is `contains a space`:
+//!
+//! ```no_run
+//! # use xshell::{Shell, cmd}; let sh = Shell::new().unwrap();
+//! let file = "contrains a space";
+//! cmd!(sh, "touch {file}").run()?;
+//! # Ok::<(), xshell::Error>(())
+//! ```
+//!
+//! Next, `cd` into the folder you have just cloned:
+//!
+//! ```no_run
+//! # use xshell::{Shell, cmd}; let sh = Shell::new().unwrap();
+//! # let repo = "xshell";
+//! sh.change_dir(repo);
+//! ```
+//!
+//! Each instance of [`Shell`] has a current directory, which is independent of
+//! the process-wide [`std::env::current_dir`]. The same applies to the
+//! environment.
+//!
+//! Next, run the tests:
+//!
+//! ```no_run
+//! # use xshell::{Shell, cmd}; let sh = Shell::new().unwrap();
+//! let test_args = ["-Zunstable-options", "--report-time"];
+//! cmd!(sh, "cargo test -- {test_args...}").run()?;
+//! # Ok::<(), xshell::Error>(())
+//! ```
+//!
+//! Note how the so-called splat syntax (`...`) is used to inerpolate an
+//! iterable of arguments.
+//!
+//! Next, read the Cargo.toml so that we can fetch crate' declared version:
+//!
+//! ```no_run
+//! # use xshell::{Shell, cmd}; let sh = Shell::new().unwrap();
+//! let manifest = sh.read_file("Cargo.toml")?;
+//! # Ok::<(), xshell::Error>(())
+//! ```
+//!
+//! [`Shell::read_file`] works like [`std::fs::read_to_string`], but paths are
+//! relative to the current directory of the [`Shell`]. Unlike [`std::fs`],
+//! error messages are much more useful. For example, if there isn't a
+//! `Cargo.toml` in the repository, the error message is:
+//!
+//! ```text
+//! Error: failed to read file `xshell/Cargo.toml`: no such file or directory (os error 2)
+//! ```
+//!
+//! `xshell` doesn't implement string processing utils like `grep`, `sed` or
+//! `awk` -- there's no need to, built-in language features work fine, and it's
+//! always possible to pull extra functionality from crates.io.
+//!
+//! To extract the `version` field from Cargo.toml, [`str::split_once`] is
+//! enough:
+//!
+//! ```no_run
+//! # use xshell::{Shell, cmd}; let sh = Shell::new().unwrap();
+//! let manifest = sh.read_file("Cargo.toml")?;
+//! let version = manifest
+//!     .split_once("version = \"")
+//!     .and_then(|it| it.1.split_once('\"'))
+//!     .map(|it| it.0)
+//!     .ok_or_else(|| anyhow::format_err!("can't find version field in the manifest"))?;
+//!
+//! cmd!(sh, "git tag {version}").run()?;
+//! # Ok::<(), anyhow::Error>(())
+//! ```
+//!
+//! The splat (`...`) syntax works with any iterable, and in Rust options are
+//! iterable. This means that `...` can be used to implement optional arguments.
+//! For example, here's how to pass `--dry-run` when *not* running in CI:
+//!
+//! ```no_run
+//! # use xshell::{Shell, cmd}; let sh = Shell::new().unwrap();
+//! let dry_run = if sh.var("CI").is_ok() { None } else { Some("--dry-run") };
+//! cmd!(sh, "cargo publish {dry_run...}").run()?;
+//! # Ok::<(), xshell::Error>(())
+//! ```
+//!
+//! Putting everything altogether, here's the whole script
+//!
+//! ```no_run
+//! use xshell::{cmd, Shell};
+//!
+//! fn main() -> anyhow::Result<()> {
+//!     let sh = Shell::new()?;
+//!
+//!     let user = "matklad";
+//!     let repo = "xshell";
+//!     cmd!(sh, "git clone https://github.com/{user}/{repo}.git").run()?;
+//!     sh.change_dir(repo);
+//!
+//!     let test_args = ["-Zunstable-options", "--report-time"];
+//!     cmd!(sh, "cargo test -- {test_args...}").run()?;
+//!
+//!     let manifest = sh.read_file("Cargo.toml")?;
+//!     let version = manifest
+//!         .split_once("version = \"")
+//!         .and_then(|it| it.1.split_once('\"'))
+//!         .map(|it| it.0)
+//!         .ok_or_else(|| anyhow::format_err!("can't find version field in the manifest"))?;
+//!
+//!     cmd!(sh, "git tag {version}").run()?;
+//!
+//!     let dry_run = if sh.var("CI").is_ok() { None } else { Some("--dry-run") };
+//!     cmd!(sh, "cargo publish {dry_run...}").run()?;
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! `xshell` uses a similar script to automatically publish itself to crates.io when the version in Cargo.toml changes:
+//!
+//! <https://github.com/matklad/xshell/blob/master/examples/ci.rs>
 //!
 //! # Maintenance
 //!
@@ -317,6 +356,17 @@ impl Shell {
     #[doc(alias = "pwd")]
     pub fn current_dir(&self) -> PathBuf {
         self.cwd.borrow().clone()
+    }
+
+    /// Changes the working directory for this [`Shell`].
+    ///
+    /// Note that this doesn't affect [`std::env::current_dir`].
+    #[doc(alias = "pwd")]
+    pub fn change_dir<P: AsRef<Path>>(&self, dir: P) {
+        self._change_dir(dir.as_ref())
+    }
+    fn _change_dir(&self, dir: &Path) {
+        *self.cwd.borrow_mut() = dir.to_path_buf()
     }
 
     /// Temporary changes the working directory of this [`Shell`].
@@ -605,8 +655,8 @@ impl Drop for PushEnv<'_> {
 /// let cmd = cmd!(sh, "git switch {branch}").quiet().run()?;
 /// # Ok::<(), xshell::Error>(())
 /// ```
-#[must_use]
 #[derive(Debug)]
+#[must_use]
 pub struct Cmd<'a> {
     shell: &'a Shell,
     data: CmdData,
