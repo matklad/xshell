@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0-pre.1
+## 0.2.0
 
 A major release with significant changes to the API:
 
