@@ -264,11 +264,11 @@ pub use xshell_macros::__cmd;
 
 /// A `Shell` is the main API entry point.
 ///
-/// Almost all of the crate's funcgionality is available as methods of the
+/// Almost all of the crate's functionality is available as methods of the
 /// `Shell` object.
 ///
-/// `Shell` is a stateful object. It maintains logical a working directory and
-/// an environment map. They are independent frmo process's
+/// `Shell` is a stateful object. It maintains a logical working directory and
+/// an environment map. They are independent from process's
 /// [`std::env::current_dir`] and [`std::env::var`], and only affect paths and
 /// commands passed to the [`Shell`].
 ///
@@ -303,7 +303,7 @@ impl Shell {
     ///
     /// Fails if [`std::env::current_dir`] returns an error.
     pub fn new() -> Result<Shell> {
-        let cwd = current_dir().map_err(|err| Error::new_current_dir(err))?;
+        let cwd = current_dir().map_err(Error::new_current_dir)?;
         let cwd = RefCell::new(cwd);
         let env = RefCell::new(Vec::new());
         Ok(Shell { cwd, env })
@@ -747,7 +747,7 @@ impl<'a> Cmd<'a> {
         }
     }
 
-    /// Overridse the value of the environmental variable for this command.
+    /// Overrides the value of the environmental variable for this command.
     pub fn env<K: AsRef<OsStr>, V: AsRef<OsStr>>(mut self, key: K, val: V) -> Cmd<'a> {
         self._env_set(key.as_ref(), val.as_ref());
         self
@@ -757,7 +757,7 @@ impl<'a> Cmd<'a> {
         self.data.env_changes.push(EnvChange::Set(key.to_owned(), val.to_owned()));
     }
 
-    /// Overridse the values of specified environmental variables for this
+    /// Overrides the values of specified environmental variables for this
     /// command.
     pub fn envs<I, K, V>(mut self, vars: I) -> Cmd<'a>
     where
@@ -769,7 +769,7 @@ impl<'a> Cmd<'a> {
         self
     }
 
-    /// Removes the environmental variable from this command.
+    /// Removes the environment variable from this command.
     pub fn env_remove<K: AsRef<OsStr>>(mut self, key: K) -> Cmd<'a> {
         self._env_remove(key.as_ref());
         self
@@ -778,11 +778,11 @@ impl<'a> Cmd<'a> {
         self.data.env_changes.push(EnvChange::Remove(key.to_owned()));
     }
 
-    /// Removes all of the environmental variables from this command.
+    /// Removes all of the environment variables from this command.
     ///
     /// Note that on Windows some environmental variables are required for
     /// process spawning. See <https://github.com/rust-lang/rust/issues/31259>.
-    // FIXME: this should just work on window.
+    // FIXME: this should just work on windows.
     pub fn env_clear(mut self) -> Cmd<'a> {
         self.data.env_changes.push(EnvChange::Clear);
         self
@@ -795,7 +795,7 @@ impl<'a> Cmd<'a> {
         self.set_ignore_status(true);
         self
     }
-    /// Controlls whether non-zero exit status is considered an error.
+    /// Controls whether non-zero exit status is considered an error.
     pub fn set_ignore_status(&mut self, yes: bool) {
         self.data.ignore_status = yes;
     }
@@ -807,7 +807,7 @@ impl<'a> Cmd<'a> {
         self.set_quiet(true);
         self
     }
-    /// Controlls whether the commad itself is printed to stderr.
+    /// Controls whether the command itself is printed to stderr.
     pub fn set_quiet(&mut self, yes: bool) {
         self.data.quiet = yes;
     }
@@ -820,12 +820,12 @@ impl<'a> Cmd<'a> {
         self.set_secret(true);
         self
     }
-    /// Controlls whether the command is secret.
+    /// Controls whether the command is secret.
     pub fn set_secret(&mut self, yes: bool) {
         self.data.secret = yes;
     }
 
-    /// Pass the given slice to the standart input of the spawned process.
+    /// Pass the given slice to the standard input of the spawned process.
     pub fn stdin(mut self, stdin: impl AsRef<[u8]>) -> Cmd<'a> {
         self._stdin(stdin.as_ref());
         self
@@ -836,13 +836,13 @@ impl<'a> Cmd<'a> {
 
     /// Ignores the standard output stream of the process.
     ///
-    /// This is equivalent redirrecting stdout to `/dev/null`. By default, the
+    /// This is equivalent to redirecting stdout to `/dev/null`. By default, the
     /// stdout is inherited or captured.
     pub fn ignore_stdout(mut self) -> Cmd<'a> {
         self.set_ignore_stdout(true);
         self
     }
-    /// Controlles whether the standard output is ignored.
+    /// Controls whether the standard output is ignored.
     pub fn set_ignore_stdout(&mut self, yes: bool) {
         self.data.ignore_stdout = yes;
     }
@@ -855,7 +855,7 @@ impl<'a> Cmd<'a> {
         self.set_ignore_stderr(true);
         self
     }
-    /// Controlles whether the standard error is ignored.
+    /// Controls whether the standard error is ignored.
     pub fn set_ignore_stderr(&mut self, yes: bool) {
         self.data.ignore_stderr = yes;
     }
@@ -864,9 +864,9 @@ impl<'a> Cmd<'a> {
     // region:running
     /// Runs the command.
     ///
-    /// By default the command itself is echoed to sterr, its standard streams
-    /// are inhereted, and non-zero return code is considered an error. These
-    /// behaviors be overriden by using various builder methods of the [`Cmd`].
+    /// By default the command itself is echoed to stderr, its standard streams
+    /// are inherited, and non-zero return code is considered an error. These
+    /// behaviors can be overridden by using various builder methods of the [`Cmd`].
     pub fn run(&self) -> Result<()> {
         if !self.data.quiet {
             eprintln!("$ {}", self);
