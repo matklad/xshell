@@ -23,7 +23,7 @@
 //!   interpolation, writing to a file automatically creates parent directories,
 //!   etc.
 //! * Reliability: no [shell injection] by construction, good error messages
-//!   which file  paths, non-zero exit status is an error, independence of the
+//!   with file  paths, non-zero exit status is an error, independence of the
 //!   host environment, etc.
 //! * Frugality: fast compile times, few dependencies, low-tech API.
 //!
@@ -217,7 +217,8 @@
 //! }
 //! ```
 //!
-//! `xshell` uses a similar script to automatically publish itself to crates.io when the version in Cargo.toml changes:
+//! `xshell` uses a similar script to automatically publish itself to crates.io
+//! when the version in Cargo.toml changes:
 //!
 //! <https://github.com/matklad/xshell/blob/master/examples/ci.rs>
 //!
