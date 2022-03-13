@@ -2,9 +2,11 @@
 name = "xshell-macros"
 description = "Private implementation detail of xshell crate"
 version = "0.1.17"
-authors = ["Aleksey Kladov <aleksey.kladov@gmail.com>"]
-edition = "2018"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/matklad/xshell"
+authors = ["Aleksey Kladov <aleksey.kladov@gmail.com>"]
+edition = "2021"
+rust-version = "1.59"
 
 [lib]
 proc-macro = true

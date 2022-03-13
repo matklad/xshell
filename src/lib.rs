@@ -184,7 +184,7 @@
 //!
 //! # Maintenance
 //!
-//! Minimum Supported Rust Version: 1.60.0. MSRV bump is not considered semver
+//! Minimum Supported Rust Version: 1.59.0. MSRV bump is not considered semver
 //! breaking. MSRV is updated conservatively.
 //!
 //! The crate isn't comprehensive yet, but this is a goal. You are hereby
