@@ -247,7 +247,7 @@ fn no_deadlock() {
 }
 
 #[test]
-fn test_pushd() {
+fn test_push_dir() {
     let sh = setup();
 
     let d1 = sh.current_dir();
@@ -268,7 +268,7 @@ fn test_pushd() {
 }
 
 #[test]
-fn pushd_parent_dir() {
+fn push_dir_parent_dir() {
     let sh = setup();
 
     let current = sh.current_dir();
