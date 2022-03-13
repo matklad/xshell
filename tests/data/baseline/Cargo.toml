@@ -1,6 +1,5 @@
 [package]
 name = "baseline"
 version = "0.0.0"
-authors = ["Aleksey Kladov <aleksey.kladov@gmail.com>"]
-edition = "2018"
+edition = "2021"
 [workspace]
