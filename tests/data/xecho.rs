@@ -63,10 +63,11 @@ fn try_main() -> io::Result<()> {
         return Err(io::ErrorKind::Other.into());
     }
     if suicide {
+        #[cfg(unix)]
         unsafe {
-            let pid = getpid();
+            let pid = signals::getpid();
             if pid > 0 {
-                kill(pid, 9);
+                signals::kill(pid, 9);
             }
         }
     }
@@ -74,8 +75,11 @@ fn try_main() -> io::Result<()> {
     Ok(())
 }
 
-use std::os::raw::c_int;
-extern "C" {
-    fn kill(pid: c_int, sig: c_int) -> c_int;
-    fn getpid() -> c_int;
+#[cfg(unix)]
+mod signals {
+    use std::os::raw::c_int;
+    extern "C" {
+        pub fn kill(pid: c_int, sig: c_int) -> c_int;
+        pub fn getpid() -> c_int;
+    }
 }

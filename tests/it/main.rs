@@ -151,6 +151,7 @@ fn exit_status() {
 }
 
 #[test]
+#[cfg_attr(not(unix), ignore)]
 fn exit_status_signal() {
     let sh = setup();
 
@@ -175,6 +176,7 @@ fn ignore_status_no_such_command() {
 }
 
 #[test]
+#[cfg_attr(not(unix), ignore)]
 fn ignore_status_signal() {
     let sh = setup();
 
