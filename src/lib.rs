@@ -235,12 +235,15 @@
 //! [`duct`] is a crate for heavy-duty process herding, with support for
 //! pipelines.
 //!
+//! [`sh-inline`] is a crate that depends on bash, but handles shell quoting correctly.
+//!
 //! Most of what this crate provides can be open-coded using
 //! [`std::process::Command`] and [`std::fs`]. If you only need to spawn a
 //! single process, using `std` is probably better (but don't forget to check
 //! the exit status!).
 //!
 //! [`duct`]: https://github.com/oconnor663/duct.rs
+//! [`sh-inline`]: https://docs.rs/sh-inline/latest/sh_inline
 //! [shell injection]:
 //!     https://en.wikipedia.org/wiki/Code_injection#Shell_injection
 //!
