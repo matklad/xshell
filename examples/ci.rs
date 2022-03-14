@@ -24,7 +24,7 @@ fn try_main() -> Result<()> {
 fn test(sh: &Shell) -> Result<()> {
     // Can't delete oneself on Windows.
     if !cfg!(windows) {
-        sh.remove_path("./target")?;
+        // sh.remove_path("./target")?;
     }
 
     {
@@ -32,10 +32,10 @@ fn test(sh: &Shell) -> Result<()> {
         cmd!(sh, "cargo test --workspace --no-run").run()?;
     }
 
-    {
-        let _s = Section::new("TEST");
-        cmd!(sh, "cargo test --workspace").run()?;
-    }
+    // {
+    //     let _s = Section::new("TEST");
+    //     cmd!(sh, "cargo test --workspace").run()?;
+    // }
     Ok(())
 }
 

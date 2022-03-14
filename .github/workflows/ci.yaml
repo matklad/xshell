@@ -32,21 +32,21 @@ jobs:
           override: true
       - run: cargo run --example ci
 
-  publish:
-    needs: test
-    name: publish
-    runs-on: [ubuntu-latest]
+  # publish:
+  #   needs: test
+  #   name: publish
+  #   runs-on: [ubuntu-latest]
 
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: 1.59.0
-          profile: minimal
-          components: rustfmt
-          override: true
-      - run: cargo run --example ci -- publish
-        env:
-          CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #       with:
+  #         fetch-depth: 0
+  #     - uses: actions-rs/toolchain@v1
+  #       with:
+  #         toolchain: 1.59.0
+  #         profile: minimal
+  #         components: rustfmt
+  #         override: true
+  #     - run: cargo run --example ci -- publish
+  #       env:
+  #         CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
