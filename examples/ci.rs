@@ -24,7 +24,7 @@ fn try_main() -> Result<()> {
 fn test(sh: &Shell) -> Result<()> {
     // Can't delete oneself on Windows.
     if !cfg!(windows) {
-        // sh.remove_path("./target")?;
+        sh.remove_path("./target")?;
     }
 
     {
