@@ -281,7 +281,7 @@ use std::{
     env::{self, current_dir, VarError},
     ffi::{OsStr, OsString},
     fmt, fs,
-    io::{self, Write},
+    io::{self, ErrorKind, Write},
     mem,
     path::{Path, PathBuf},
     process::{Command, ExitStatus, Output, Stdio},
@@ -634,8 +634,12 @@ impl Shell {
     }
     fn _remove_path(&self, path: &Path) -> Result<(), Error> {
         let path = self.path(path);
-        if path.is_file() { fs::remove_file(&path) } else { remove_dir_all(&path) }
-            .map_err(|err| Error::new_remove_path(err, path))
+        match path.metadata() {
+            Ok(meta) => if meta.is_dir() { remove_dir_all(&path) } else { fs::remove_file(&path) }
+                .map_err(|err| Error::new_remove_path(err, path)),
+            Err(err) if err.kind() == ErrorKind::NotFound => Ok(()),
+            Err(err) => Err(Error::new_remove_path(err, path)),
+        }
     }
     // endregion:fs
 

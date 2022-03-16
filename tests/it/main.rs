@@ -2,7 +2,7 @@ mod tidy;
 mod env;
 mod compile_failures;
 
-use std::ffi::OsStr;
+use std::{ffi::OsStr, path::Path};
 
 use xshell::{cmd, Shell};
 
@@ -364,7 +364,7 @@ fn test_read_with_ignore() {
 }
 
 #[test]
-fn test_cp() {
+fn test_copy_file() {
     let sh = setup();
 
     let path;
@@ -395,6 +395,19 @@ fn write_makes_directory() {
     let folder = tempdir.path().join("some/nested/folder/structure");
     sh.write_file(folder.join(".gitinclude"), "").unwrap();
     assert!(folder.exists());
+}
+
+#[test]
+fn test_remove_path() {
+    let sh = setup();
+
+    let tempdir = sh.create_temp_dir().unwrap();
+    sh.change_dir(tempdir.path());
+    sh.write_file(Path::new("a/b/c.rs"), "fn main() {}").unwrap();
+    assert!(tempdir.path().join("a/b/c.rs").exists());
+    sh.remove_path("./a").unwrap();
+    assert!(!tempdir.path().join("a/b/c.rs").exists());
+    sh.remove_path("./a").unwrap();
 }
 
 #[test]
