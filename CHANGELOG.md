@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+- `Shell::remove_path` returns `Ok` if the path does not exist (ie the function
+  is now idempotent).
+
 ## 0.2.0
 
 A major release with significant changes to the API:
