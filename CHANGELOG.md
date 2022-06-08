@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+
+- Add `Shell::path_exists`.
+
 ## 0.2.1
 
 - `Shell::remove_path` returns `Ok` if the path does not exist (ie the function
@@ -15,7 +19,7 @@ A major release with significant changes to the API:
 - MSRV is raised to 1.59.0.
 - Improved reliability across the board: the crate aims to become a dependable
   1.0 tool in the future (no ETA).
-- This is expected to be the last *large* API reshufl.
+- This is expected to be the last *large* API reshuffle.
 
 ## 0.1.17
 
