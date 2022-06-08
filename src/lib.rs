@@ -641,6 +641,12 @@ impl Shell {
             Err(err) => Err(Error::new_remove_path(err, path)),
         }
     }
+
+    /// Returns whether a file or directory exists at the given path.
+    #[doc(alias("stat"))]
+    pub fn path_exists<P: AsRef<Path>>(&self, path: P) -> bool {
+        self.path(path.as_ref()).exists()
+    }
     // endregion:fs
 
     /// Creates a new [`Cmd`] that executes the given `program`.

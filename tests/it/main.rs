@@ -83,7 +83,7 @@ fn interpolation_concatenation() {
 }
 
 #[test]
-fn program_concatentation() {
+fn program_concatenation() {
     let sh = setup();
 
     let ho = "ho";
@@ -385,6 +385,25 @@ fn test_copy_file() {
         assert!(path.exists());
     }
     assert!(!path.exists());
+}
+
+#[test]
+fn test_exists() {
+    let sh = setup();
+    let tmp = sh.create_temp_dir().unwrap();
+    let _d = sh.change_dir(tmp.path());
+    assert!(!sh.path_exists("foo.txt"));
+    sh.write_file("foo.txt", "foo").unwrap();
+    assert!(sh.path_exists("foo.txt"));
+    assert!(!sh.path_exists("bar"));
+    sh.create_dir("bar").unwrap();
+    assert!(sh.path_exists("bar"));
+    let _d = sh.change_dir("bar");
+    assert!(!sh.path_exists("quz.rs"));
+    sh.write_file("quz.rs", "fn main () {}").unwrap();
+    assert!(sh.path_exists("quz.rs"));
+    sh.remove_path("quz.rs").unwrap();
+    assert!(!sh.path_exists("quz.rs"));
 }
 
 #[test]
