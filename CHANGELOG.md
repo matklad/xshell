@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.3
+
+- Fix bug where `Cmd::run` would ignore specified stdin.
+
 ## 0.2.2
 
 - Add `Shell::path_exists`.

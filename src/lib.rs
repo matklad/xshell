@@ -960,10 +960,7 @@ impl<'a> Cmd<'a> {
         if !self.data.quiet {
             eprintln!("$ {}", self);
         }
-        let mut command = self.to_command();
-        let status = command.status().map_err(|err| Error::new_cmd_io(self, err))?;
-        self.check_status(status)?;
-        Ok(())
+        self.output_impl(false, false).map(|_| ())
     }
 
     /// Run the command and return its stdout as a string.
