@@ -468,6 +468,10 @@ fn nonexistent_current_directory() {
     let err = cmd!(sh, "ls").run().unwrap_err();
     assert_eq!(
         err.to_string(),
-        "failed to get current directory: No such file or directory (os error 2)"
+        if cfg!(unix) {
+            "failed to get current directory: No such file or directory (os error 2)"
+        } else {
+            "io error when running command `ls`: The directory name is invalid. (os error 267)"
+        }
     );
 }
