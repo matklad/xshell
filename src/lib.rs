@@ -1013,7 +1013,17 @@ impl<'a> Cmd<'a> {
                 None => Stdio::null(),
             });
 
-            command.spawn().map_err(|err| Error::new_cmd_io(self, err))?
+            command.spawn().map_err(|err| {
+                // Try to determine whether the command failed because the current
+                // directory does not exist. Return an appropriate error in such a
+                // case.
+                if matches!(err.kind(), io::ErrorKind::NotFound) {
+                    if let Err(err) = self.shell.cwd.borrow().metadata() {
+                        return Error::new_current_dir(err);
+                    }
+                }
+                Error::new_cmd_io(self, err)
+            })?
         };
 
         let mut io_thread = None;

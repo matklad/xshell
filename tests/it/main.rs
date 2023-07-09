@@ -460,3 +460,14 @@ fn string_escapes() {
     assert_eq!(cmd!(sh, "\"\"\"asdf\"\"\"").to_string(), r##""""asdf""""##);
     assert_eq!(cmd!(sh, "\\\\").to_string(), r#"\\"#);
 }
+
+#[test]
+fn nonexistent_current_directory() {
+    let sh = setup();
+    sh.change_dir("nonexistent");
+    let err = cmd!(sh, "ls").run().unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        "failed to get current directory: No such file or directory (os error 2)"
+    );
+}
