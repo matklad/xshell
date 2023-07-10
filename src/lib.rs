@@ -391,7 +391,7 @@ impl Shell {
     ///
     /// Fails if [`std::env::current_dir`] returns an error.
     pub fn new() -> Result<Shell> {
-        let cwd = current_dir().map_err(Error::new_current_dir)?;
+        let cwd = current_dir().map_err(|err| Error::new_current_dir(err, None))?;
         let cwd = RefCell::new(cwd);
         let env = RefCell::new(HashMap::new());
         Ok(Shell { cwd, env })
@@ -1013,7 +1013,18 @@ impl<'a> Cmd<'a> {
                 None => Stdio::null(),
             });
 
-            command.spawn().map_err(|err| Error::new_cmd_io(self, err))?
+            command.spawn().map_err(|err| {
+                // Try to determine whether the command failed because the current
+                // directory does not exist. Return an appropriate error in such a
+                // case.
+                if matches!(err.kind(), io::ErrorKind::NotFound) {
+                    let cwd = self.shell.cwd.borrow();
+                    if let Err(err) = cwd.metadata() {
+                        return Error::new_current_dir(err, Some(cwd.clone()));
+                    }
+                }
+                Error::new_cmd_io(self, err)
+            })?
         };
 
         let mut io_thread = None;
