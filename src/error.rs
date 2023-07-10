@@ -12,7 +12,7 @@ pub struct Error {
 
 /// Note: this is intentionally not public.
 enum ErrorKind {
-    CurrentDir { err: io::Error },
+    CurrentDir { err: io::Error, path: Option<PathBuf> },
     Var { err: env::VarError, var: OsString },
     ReadFile { err: io::Error, path: PathBuf },
     ReadDir { err: io::Error, path: PathBuf },
@@ -37,7 +37,11 @@ impl From<ErrorKind> for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &*self.kind {
-            ErrorKind::CurrentDir { err } => write!(f, "failed to get current directory: {err}"),
+            ErrorKind::CurrentDir { err, path } => {
+                let suffix =
+                    path.as_ref().map_or(String::new(), |path| format!(" `{}`", path.display()));
+                write!(f, "failed to get current directory{suffix}: {err}")
+            }
             ErrorKind::Var { err, var } => {
                 let var = var.to_string_lossy();
                 write!(f, "failed to get environment variable `{var}`: {err}")
@@ -113,8 +117,8 @@ impl std::error::Error for Error {}
 
 /// `pub(crate)` constructors, visible only in this crate.
 impl Error {
-    pub(crate) fn new_current_dir(err: io::Error) -> Error {
-        ErrorKind::CurrentDir { err }.into()
+    pub(crate) fn new_current_dir(err: io::Error, path: Option<PathBuf>) -> Error {
+        ErrorKind::CurrentDir { err, path }.into()
     }
 
     pub(crate) fn new_var(err: env::VarError, var: OsString) -> Error {

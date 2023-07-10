@@ -466,12 +466,13 @@ fn nonexistent_current_directory() {
     let sh = setup();
     sh.change_dir("nonexistent");
     let err = cmd!(sh, "ls").run().unwrap_err();
-    assert_eq!(
-        err.to_string(),
-        if cfg!(unix) {
-            "failed to get current directory: No such file or directory (os error 2)"
-        } else {
+    if cfg!(unix) {
+        assert!(err.to_string().starts_with("failed to get current directory"));
+        assert!(err.to_string().ends_with("No such file or directory (os error 2)"));
+    } else {
+        assert_eq!(
+            err.to_string(),
             "io error when running command `ls`: The directory name is invalid. (os error 267)"
-        }
-    );
+        );
+    }
 }
