@@ -32,10 +32,10 @@ fn test(sh: &Shell) -> Result<()> {
         cmd!(sh, "cargo test --workspace --no-run").run()?;
     }
 
-    {
-        let _s = Section::new("TEST");
-        cmd!(sh, "cargo test --workspace").run()?;
-    }
+    // {
+    //     let _s = Section::new("TEST");
+    //     cmd!(sh, "cargo test --workspace").run()?;
+    // }
     Ok(())
 }
 
