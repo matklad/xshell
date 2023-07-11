@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.4
+## 0.2.5
 
 - Improve error message when a working directory for `cmd!` does not exist.
 
