@@ -37,3 +37,5 @@ fn main() -> anyhow::Result<()> {
 ```
 
 See [the docs](https://docs.rs/xshell) for more.
+
+If you like the ideas behind xshell, you will enjoy [dax](https://github.com/dsherret/dax).

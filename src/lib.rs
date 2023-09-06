@@ -244,6 +244,9 @@
 //! [shell injection]:
 //!     https://en.wikipedia.org/wiki/Code_injection#Shell_injection
 //!
+//! The [`dax`](https://github.com/dsherret/dax) library for Deno shares the overall philosophy with
+//! `xshell`, but is much more thorough and complete. If you don't need Rust, use `dax`.
+//!
 //! # Implementation Notes
 //!
 //! The design is heavily inspired by the Julia language:
