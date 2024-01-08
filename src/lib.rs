@@ -662,6 +662,33 @@ impl Shell {
         let cd = self.cwd.borrow();
         cd.join(p)
     }
+
+    /// Returns the environment variables set for this shell.
+    ///
+    /// The returned hash map contains a snapshot of the process’s environment variables at the time of this invocation. Modifications to environment variables afterwards will not be reflected in the returned iterator.
+    pub fn vars_os(&self) -> Vec<(OsString, OsString)> {
+        Vec::from_iter(self.env.borrow().iter().map(|(k, v)| (k.to_owned(), v.to_owned())))
+    }
+
+    /// Returns the environment variables set for this shell.
+    ///
+    /// The returned hash map contains a snapshot of the process’s environment
+    /// variables at the time of this invocation. Modifications to environment
+    /// variables afterwards will not be reflected in the returned iterator.
+    ///
+    /// # Panics
+    ///
+    /// While iterating, the returned iterator will panic if any key or value in
+    /// the environment is not valid unicode. If this is not desired, consider
+    /// using [`Shell::vars_os`](Self::vars_os).
+    pub fn vars(&self) -> Vec<(String, String)> {
+        Vec::from_iter(
+            self.env
+                .borrow()
+                .iter()
+                .map(|(k, v)| (k.to_str().unwrap().to_string(), v.to_str().unwrap().to_string())),
+        )
+    }
 }
 
 /// RAII guard returned from [`Shell::push_dir`].
