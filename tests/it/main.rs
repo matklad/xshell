@@ -398,7 +398,7 @@ fn test_exists() {
     assert!(!sh.path_exists("bar"));
     sh.create_dir("bar").unwrap();
     assert!(sh.path_exists("bar"));
-    let _d = sh.change_dir("bar");
+    sh.change_dir("bar");
     assert!(!sh.path_exists("quz.rs"));
     sh.write_file("quz.rs", "fn main () {}").unwrap();
     assert!(sh.path_exists("quz.rs"));
