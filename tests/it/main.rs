@@ -381,7 +381,7 @@ fn test_copy_file() {
         assert_eq!(sh.read_file(&bar).unwrap(), "hello world");
 
         sh.copy_file(&path_foo, &dir).unwrap();
-        assert_eq!(sh.read_file(&dir.join("foo.txt")).unwrap(), "hello world");
+        assert_eq!(sh.read_file(dir.join("foo.txt")).unwrap(), "hello world");
         assert!(path.exists());
     }
     assert!(!path.exists());
