@@ -685,14 +685,15 @@ impl Shell {
     /// If this is not desired, consider using
     /// [`Shell::vars_os`](Self::vars_os).
     pub fn vars(&self) -> Vec<(String, String)> {
-        let mut vars = Vec::from_iter(
-            self.env
-                .borrow()
-                .iter()
-                .map(|(k, v)| (k.to_str().unwrap().to_string(), v.to_str().unwrap().to_string())),
-        );
-        vars.sort_unstable_by(|(a, _), (b, _)| a.cmp(b));
-        vars
+        #[inline]
+        fn os_str_to_string(os_str: OsString) -> String {
+            os_str.to_str().unwrap().to_string()
+        }
+        // re-use functionality from `Self::vars_os` to reduce code repetition
+        self.vars_os()
+            .into_iter()
+            .map(|(k, v)| (os_str_to_string(k), os_str_to_string(v)))
+            .collect()
     }
 }
 
