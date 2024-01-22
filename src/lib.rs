@@ -681,9 +681,9 @@ impl Shell {
     ///
     /// # Panics
     ///
-    /// While iterating, the returned iterator will panic if any key or value in
-    /// the environment is not valid unicode. If this is not desired, consider
-    /// using [`Shell::vars_os`](Self::vars_os).
+    /// Will panic if any key or value in the environment is not valid unicode.
+    /// If this is not desired, consider using
+    /// [`Shell::vars_os`](Self::vars_os).
     pub fn vars(&self) -> Vec<(String, String)> {
         let mut vars = Vec::from_iter(
             self.env
