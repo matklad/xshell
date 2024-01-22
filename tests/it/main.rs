@@ -391,7 +391,7 @@ fn test_copy_file() {
 fn test_exists() {
     let sh = setup();
     let tmp = sh.create_temp_dir().unwrap();
-    let _d = sh.change_dir(tmp.path());
+    sh.change_dir(tmp.path());
     assert!(!sh.path_exists("foo.txt"));
     sh.write_file("foo.txt", "foo").unwrap();
     assert!(sh.path_exists("foo.txt"));
