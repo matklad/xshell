@@ -802,8 +802,7 @@ impl From<Cmd<'_>> for Command {
 
 impl<'a> Cmd<'a> {
     fn new(shell: &'a Shell, prog: &Path) -> Cmd<'a> {
-        let mut data = CmdData::default();
-        data.prog = prog.to_path_buf();
+        let data = CmdData { prog: prog.to_path_buf(), ..Default::default() };
         Cmd { shell, data }
     }
 
