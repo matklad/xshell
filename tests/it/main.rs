@@ -320,7 +320,7 @@ fn test_push_env_and_set_var() {
         let _e = sh.push_env(VAR, "1");
         let e2 = sh.var_os(VAR);
         assert_eq!(e2, Some("1".into()));
-        let _e = sh.set_var(VAR, "2");
+        sh.set_var(VAR, "2");
         let e3 = sh.var_os(VAR);
         assert_eq!(e3, Some("2".into()));
     }
