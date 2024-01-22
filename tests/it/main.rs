@@ -371,16 +371,16 @@ fn test_copy_file() {
     {
         let tempdir = sh.create_temp_dir().unwrap();
         path = tempdir.path().to_path_buf();
-        let foo = tempdir.path().join("foo.txt");
+        let path_foo = tempdir.path().join("foo.txt");
         let bar = tempdir.path().join("bar.txt");
         let dir = tempdir.path().join("dir");
-        sh.write_file(&foo, "hello world").unwrap();
+        sh.write_file(&path_foo, "hello world").unwrap();
         sh.create_dir(&dir).unwrap();
 
-        sh.copy_file(&foo, &bar).unwrap();
+        sh.copy_file(&path_foo, &bar).unwrap();
         assert_eq!(sh.read_file(&bar).unwrap(), "hello world");
 
-        sh.copy_file(&foo, &dir).unwrap();
+        sh.copy_file(&path_foo, &dir).unwrap();
         assert_eq!(sh.read_file(&dir.join("foo.txt")).unwrap(), "hello world");
         assert!(path.exists());
     }
