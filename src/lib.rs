@@ -742,6 +742,7 @@ impl Drop for PushEnv<'_> {
 pub struct Cmd<'a> {
     shell: &'a Shell,
     data: CmdData,
+    before_spawn: BeforeSpawnActions,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -804,7 +805,7 @@ impl<'a> Cmd<'a> {
     fn new(shell: &'a Shell, prog: &Path) -> Cmd<'a> {
         let mut data = CmdData::default();
         data.prog = prog.to_path_buf();
-        Cmd { shell, data }
+        Cmd { shell, data, before_spawn: BeforeSpawnActions::default() }
     }
 
     // region:builder
@@ -951,6 +952,40 @@ impl<'a> Cmd<'a> {
     pub fn set_ignore_stderr(&mut self, yes: bool) {
         self.data.ignore_stderr = yes;
     }
+
+    /// Add a hook for modifying [`std::process::Command`] objects immediately
+    /// before they are executed.
+    ///
+    /// The hook is called after all other changes are applied to the command,
+    /// so any changes made by the hook take priority. More than one hook can
+    /// be added, and hooks are executed in the order in which they were added.
+    ///
+    /// Note that hooks are only run when the command is run by `xshell` (e.g.
+    /// via [`run`], [`output`] or one of the other methods on `Cmd`).
+    /// Converting the `Cmd` to a [`Command`] via the `From` impl will not call
+    /// them. In that case you will need to modify the [`Command`] directly.
+    ///
+    /// This is intended for rare and tricky cases, such as changing the user
+    /// ID of the child process or running code in `pre_exec`. Most callers
+    /// should not need to use it.
+    ///
+    /// [`run`]: Cmd::run
+    /// [`output`]: Cmd::output
+    pub fn before_spawn<F>(mut self, func: F) -> Cmd<'a>
+    where
+        F: Fn(&mut Command) -> io::Result<()> + 'static,
+    {
+        self.add_before_spawn(func);
+        self
+    }
+    /// Add a hook for modifying [`std::process::Command`] objects immediately
+    /// before they are executed.
+    pub fn add_before_spawn<F>(&mut self, func: F)
+    where
+        F: Fn(&mut Command) -> io::Result<()> + 'static,
+    {
+        self.before_spawn.add(func);
+    }
     // endregion:builder
 
     // region:running
@@ -1015,6 +1050,10 @@ impl<'a> Cmd<'a> {
                 Some(_) => Stdio::piped(),
                 None => Stdio::null(),
             });
+
+            self.before_spawn
+                .exec(&mut command)
+                .map_err(|err| Error::new_before_spawn_io(self, err))?;
 
             command.spawn().map_err(|err| {
                 // Try to determine whether the command failed because the current
@@ -1103,6 +1142,35 @@ impl TempDir {
 impl Drop for TempDir {
     fn drop(&mut self) {
         let _ = remove_dir_all(&self.path);
+    }
+}
+
+/// A container for [`Cmd::before_spawn()`] actions.
+#[derive(Default)]
+struct BeforeSpawnActions {
+    actions: Vec<Box<dyn Fn(&mut Command) -> io::Result<()> + 'static>>,
+}
+
+impl BeforeSpawnActions {
+    fn add<F>(&mut self, func: F)
+    where
+        F: Fn(&mut Command) -> io::Result<()> + 'static,
+    {
+        self.actions.push(Box::new(func));
+    }
+
+    fn exec(&self, cmd: &mut Command) -> io::Result<()> {
+        for action in &self.actions {
+            action(cmd)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl fmt::Debug for BeforeSpawnActions {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "<{} actions>", self.actions.len())
     }
 }
 

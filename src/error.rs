@@ -25,6 +25,7 @@ enum ErrorKind {
     CmdIo { err: io::Error, cmd: CmdData },
     CmdUtf8 { err: FromUtf8Error, cmd: CmdData },
     CmdStdin { err: io::Error, cmd: CmdData },
+    BeforeSpawnIo { err: io::Error, cmd: CmdData },
 }
 
 impl From<ErrorKind> for Error {
@@ -103,6 +104,9 @@ impl fmt::Display for Error {
             ErrorKind::CmdStdin { err, cmd } => {
                 write!(f, "failed to write to stdin of command `{cmd}`: {err}")
             }
+            ErrorKind::BeforeSpawnIo { err, cmd } => {
+                write!(f, "io error when running before_spawn function on command `{cmd}`: {err}")
+            }
         }?;
         Ok(())
     }
@@ -171,6 +175,11 @@ impl Error {
     pub(crate) fn new_cmd_stdin(cmd: &Cmd<'_>, err: io::Error) -> Error {
         let cmd = cmd.data.clone();
         ErrorKind::CmdStdin { err, cmd }.into()
+    }
+
+    pub(crate) fn new_before_spawn_io(cmd: &Cmd<'_>, err: io::Error) -> Error {
+        let cmd = cmd.data.clone();
+        ErrorKind::BeforeSpawnIo { err, cmd }.into()
     }
 }
 

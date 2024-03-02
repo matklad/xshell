@@ -478,3 +478,32 @@ fn nonexistent_current_directory() {
         );
     }
 }
+
+#[test]
+fn test_before_spawn() {
+    let sh = setup();
+    let stdout = cmd!(sh, "xecho test")
+        .before_spawn(move |cmd| {
+            cmd.arg("extra sneaky argument");
+            Ok(())
+        })
+        .read()
+        .unwrap();
+
+    assert_eq!(stdout, "test extra sneaky argument");
+}
+
+#[test]
+fn test_before_spawn_error() {
+    let errmsg = "Something went wrong! >TEST STRING<";
+
+    let sh = setup();
+    let err = cmd!(sh, "xecho test")
+        .before_spawn(move |_| Err(std::io::Error::new(std::io::ErrorKind::Other, errmsg)))
+        .run()
+        .unwrap_err();
+    let message = err.to_string();
+
+    assert!(message.contains(errmsg), "{message}");
+    assert!(message.starts_with("io error when running before_spawn function"), "{message}");
+}
