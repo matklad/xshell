@@ -11,29 +11,34 @@ fn test_env() {
     let v1 = "xshell_test_123";
     let v2 = "xshell_test_456";
 
-    assert_env(cmd!(sh, "xecho -$ {v1}").env(v1, "123"), &[(v1, Some("123"))]);
+    let cloned_sh = sh.clone();
 
-    assert_env(
-        cmd!(sh, "xecho -$ {v1} {v2}").envs([(v1, "123"), (v2, "456")].iter().copied()),
-        &[(v1, Some("123")), (v2, Some("456"))],
-    );
-    assert_env(
-        cmd!(sh, "xecho -$ {v1} {v2}")
-            .envs([(v1, "123"), (v2, "456")].iter().copied())
-            .env_remove(v2),
-        &[(v1, Some("123")), (v2, None)],
-    );
-    assert_env(
-        cmd!(sh, "xecho -$ {v1} {v2}")
-            .envs([(v1, "123"), (v2, "456")].iter().copied())
-            .env_remove("nothing"),
-        &[(v1, Some("123")), (v2, Some("456"))],
-    );
+    for sh in [&sh, &cloned_sh] {
+        assert_env(cmd!(sh, "xecho -$ {v1}").env(v1, "123"), &[(v1, Some("123"))]);
+
+        assert_env(
+            cmd!(sh, "xecho -$ {v1} {v2}").envs([(v1, "123"), (v2, "456")].iter().copied()),
+            &[(v1, Some("123")), (v2, Some("456"))],
+        );
+        assert_env(
+            cmd!(sh, "xecho -$ {v1} {v2}")
+                .envs([(v1, "123"), (v2, "456")].iter().copied())
+                .env_remove(v2),
+            &[(v1, Some("123")), (v2, None)],
+        );
+        assert_env(
+            cmd!(sh, "xecho -$ {v1} {v2}")
+                .envs([(v1, "123"), (v2, "456")].iter().copied())
+                .env_remove("nothing"),
+            &[(v1, Some("123")), (v2, Some("456"))],
+        );
+    }
 
     let _g1 = sh.push_env(v1, "foobar");
     let _g2 = sh.push_env(v2, "quark");
 
     assert_env(cmd!(sh, "xecho -$ {v1} {v2}"), &[(v1, Some("foobar")), (v2, Some("quark"))]);
+    assert_env(cmd!(cloned_sh, "xecho -$ {v1} {v2}"), &[(v1, None), (v2, None)]);
 
     assert_env(
         cmd!(sh, "xecho -$ {v1} {v2}").env(v1, "wombo"),
