@@ -312,6 +312,18 @@ fn test_push_env() {
 }
 
 #[test]
+fn test_push_env_clone() {
+    let sh = setup();
+
+    assert!(sh.var_os(VAR).is_none());
+    let guard = sh.push_env(VAR, "1");
+    let cloned = sh.clone();
+    drop(guard);
+    assert_eq!(sh.var_os(VAR), None);
+    assert_eq!(cloned.var_os(VAR), Some("1".into()));
+}
+
+#[test]
 fn test_push_env_and_set_var() {
     let sh = setup();
 

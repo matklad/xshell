@@ -380,7 +380,7 @@ macro_rules! cmd {
 /// assert_eq!(cwd, process_cwd.join("./target"));
 /// # Ok::<(), xshell::Error>(())
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Shell {
     cwd: RefCell<PathBuf>,
     env: RefCell<HashMap<OsString, OsString>>,
