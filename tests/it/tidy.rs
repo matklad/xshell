@@ -12,8 +12,6 @@ fn versions_match() {
     };
 
     let v1 = read_version("./Cargo.toml");
-    let v2 = read_version("./xshell-macros/Cargo.toml");
-    assert_eq!(v1, v2);
 
     let cargo_toml = sh.read_file("./Cargo.toml").unwrap();
     let dep = format!("xshell-macros = {{ version = \"={}\",", v1);

@@ -2,7 +2,7 @@
 name = "xshell"
 description = "Utilities for quick shell scripting in Rust"
 categories = ["development-tools::build-utils", "filesystem"]
-version = "0.2.5" # also update xshell-macros/Cargo.toml and CHANGELOG.md
+version = "0.2.6" # also update xshell-macros/Cargo.toml and CHANGELOG.md
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/matklad/xshell"
 authors = ["Aleksey Kladov <aleksey.kladov@gmail.com>"]
@@ -14,7 +14,7 @@ exclude = [".github/", "bors.toml", "rustfmt.toml", "cbench", "mock_bin/"]
 [workspace]
 
 [dependencies]
-xshell-macros = { version = "=0.2.5", path = "./xshell-macros" }
+xshell-macros = { version = "=0.2.6", path = "./xshell-macros" }
 
 [dev-dependencies]
 anyhow = "1.0.56"

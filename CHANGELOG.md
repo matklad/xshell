@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.6
+
+- Implement `Clone` for `Shell`.
+
 ## 0.2.5
 
 - Improve error message when a working directory for `cmd!` does not exist.
