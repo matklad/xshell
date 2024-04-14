@@ -4,17 +4,17 @@ use xshell::{cmd, Shell};
 
 #[test]
 fn fixed_cost_compile_times() {
-    let sh = Shell::new().unwrap();
+    let mut sh = Shell::new().unwrap();
 
-    let _p = sh.push_dir("tests/data");
-    let baseline = compile_bench(&sh, "baseline");
+    let _p = sh.change_dir("tests/data");
+    let baseline = compile_bench(&mut sh, "baseline");
     let _ducted = compile_bench(&sh, "ducted");
-    let xshelled = compile_bench(&sh, "xshelled");
+    let xshelled = compile_bench(&mut sh, "xshelled");
     let ratio = (xshelled.as_millis() as f64) / (baseline.as_millis() as f64);
     assert!(1.0 < ratio && ratio < 10.0);
 
     fn compile_bench(sh: &Shell, name: &str) -> Duration {
-        let _p = sh.push_dir(name);
+        let sh = sh.push_dir(name);
         let cargo_build = cmd!(sh, "cargo build -q");
         cargo_build.read().unwrap();
 

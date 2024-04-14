@@ -9,7 +9,7 @@ use xshell::{cmd, Shell};
 fn setup() -> Shell {
     static ONCE: std::sync::Once = std::sync::Once::new();
 
-    let sh = Shell::new().unwrap();
+    let mut sh = Shell::new().unwrap();
     let xecho_src = sh.current_dir().join("./tests/data/xecho.rs");
     let target_dir = sh.current_dir().join("./target/");
 
@@ -87,7 +87,7 @@ fn program_concatenation() {
     let sh = setup();
 
     let ho = "ho";
-    let output = cmd!(sh, "xec{ho} hello").read().unwrap();
+    let output = dbg!(cmd!(sh, "xec{ho} hello")).read().unwrap();
     assert_eq!(output, "hello");
 }
 
@@ -245,11 +245,11 @@ fn test_push_dir() {
 
     let d1 = sh.current_dir();
     {
-        let _p = sh.push_dir("xshell-macros");
+        let sh = sh.push_dir("xshell-macros");
         let d2 = sh.current_dir();
         assert_eq!(d2, d1.join("xshell-macros"));
         {
-            let _p = sh.push_dir("src");
+            let sh = sh.push_dir("src");
             let d3 = sh.current_dir();
             assert_eq!(d3, d1.join("xshell-macros/src"));
         }
@@ -266,7 +266,7 @@ fn test_push_and_change_dir() {
 
     let d1 = sh.current_dir();
     {
-        let _p = sh.push_dir("xshell-macros");
+        let mut sh = sh.push_dir("xshell-macros");
         let d2 = sh.current_dir();
         assert_eq!(d2, d1.join("xshell-macros"));
         sh.change_dir("src");
@@ -283,26 +283,28 @@ fn push_dir_parent_dir() {
 
     let current = sh.current_dir();
     let dirname = current.file_name().unwrap();
-    let _d = sh.push_dir("..");
-    let _d = sh.push_dir(dirname);
+    let sh = sh.push_dir("..");
+    let sh = sh.push_dir(dirname);
     assert_eq!(sh.current_dir().canonicalize().unwrap(), current.canonicalize().unwrap());
 }
 
 const VAR: &str = "SPICA";
 
 #[test]
-fn test_push_env() {
+fn test_subshells_env() {
     let sh = setup();
 
     let e1 = sh.var_os(VAR);
     {
-        let _e = sh.push_env(VAR, "1");
+        let mut sh = sh.clone();
+        sh.set_var(VAR, "1");
         let e2 = sh.var_os(VAR);
-        assert_eq!(e2, Some("1".into()));
+        assert_eq!(e2.as_deref(), Some("1".as_ref()));
         {
-            let _e = sh.push_env(VAR, "2");
+            let mut sh = sh.clone();
+            let _e = sh.set_var(VAR, "2");
             let e3 = sh.var_os(VAR);
-            assert_eq!(e3, Some("2".into()));
+            assert_eq!(e3.as_deref(), Some("2".as_ref()));
         }
         let e4 = sh.var_os(VAR);
         assert_eq!(e4, e2);
@@ -312,29 +314,18 @@ fn test_push_env() {
 }
 
 #[test]
-fn test_push_env_clone() {
-    let sh = setup();
-
-    assert!(sh.var_os(VAR).is_none());
-    let guard = sh.push_env(VAR, "1");
-    let cloned = sh.clone();
-    drop(guard);
-    assert_eq!(sh.var_os(VAR), None);
-    assert_eq!(cloned.var_os(VAR), Some("1".into()));
-}
-
-#[test]
 fn test_push_env_and_set_var() {
     let sh = setup();
 
     let e1 = sh.var_os(VAR);
     {
-        let _e = sh.push_env(VAR, "1");
+        let mut sh = sh.clone();
+        sh.set_var(VAR, "1");
         let e2 = sh.var_os(VAR);
-        assert_eq!(e2, Some("1".into()));
-        let _e = sh.set_var(VAR, "2");
+        assert_eq!(e2.as_deref(), Some("1".as_ref()));
+        sh.set_var(VAR, "2");
         let e3 = sh.var_os(VAR);
-        assert_eq!(e3, Some("2".into()));
+        assert_eq!(e3.as_deref(), Some("2".as_ref()));
     }
     let e5 = sh.var_os(VAR);
     assert_eq!(e5, e1);
@@ -401,7 +392,7 @@ fn test_copy_file() {
 
 #[test]
 fn test_exists() {
-    let sh = setup();
+    let mut sh = setup();
     let tmp = sh.create_temp_dir().unwrap();
     let _d = sh.change_dir(tmp.path());
     assert!(!sh.path_exists("foo.txt"));
@@ -430,7 +421,7 @@ fn write_makes_directory() {
 
 #[test]
 fn test_remove_path() {
-    let sh = setup();
+    let mut sh = setup();
 
     let tempdir = sh.create_temp_dir().unwrap();
     sh.change_dir(tempdir.path());
@@ -451,7 +442,7 @@ fn recovers_from_panics() {
     let orig = sh.current_dir();
 
     std::panic::catch_unwind(|| {
-        let _p = sh.push_dir(&tempdir);
+        let sh = sh.push_dir(&tempdir);
         assert_eq!(sh.current_dir(), tempdir);
         std::panic::resume_unwind(Box::new(()));
     })
@@ -459,7 +450,7 @@ fn recovers_from_panics() {
 
     assert_eq!(sh.current_dir(), orig);
     {
-        let _p = sh.push_dir(&tempdir);
+        let sh = sh.push_dir(&tempdir);
         assert_eq!(sh.current_dir(), tempdir);
     }
 }
@@ -475,7 +466,7 @@ fn string_escapes() {
 
 #[test]
 fn nonexistent_current_directory() {
-    let sh = setup();
+    let mut sh = setup();
     sh.change_dir("nonexistent");
     let err = cmd!(sh, "ls").run().unwrap_err();
     let message = err.to_string();

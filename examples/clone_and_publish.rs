@@ -2,7 +2,7 @@
 use xshell::{cmd, Shell};
 
 fn main() -> anyhow::Result<()> {
-    let sh = Shell::new()?;
+    let mut sh = Shell::new()?;
 
     let user = "matklad";
     let repo = "xshell";
