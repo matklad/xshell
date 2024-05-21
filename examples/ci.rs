@@ -57,7 +57,7 @@ fn publish(sh: &Shell) -> Result<()> {
 
     if current_branch == "master" && !tag_exists {
         // Could also just use `CARGO_REGISTRY_TOKEN` environmental variable.
-        let token = sh.var("CRATES_IO_TOKEN").unwrap_or("DUMMY_TOKEN".to_string());
+        let token = sh.env_var("CRATES_IO_TOKEN").unwrap_or("DUMMY_TOKEN".to_string());
         cmd!(sh, "git tag v{version}").run()?;
         cmd!(sh, "cargo publish --token {token} --package xshell-macros").run()?;
         cmd!(sh, "cargo publish --token {token} --package xshell").run()?;

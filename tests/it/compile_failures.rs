@@ -5,7 +5,7 @@ fn check(code: &str, err_msg: &str) {
     let mut sh = Shell::new().unwrap();
     let xshell_dir = sh.current_dir().to_owned();
     let temp_dir = sh.create_temp_dir().unwrap();
-    sh.change_dir(temp_dir.path());
+    sh.set_current_dir(temp_dir.path());
 
     let manifest = format!(
         r#"

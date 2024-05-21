@@ -6,7 +6,7 @@ use xshell::{cmd, Shell};
 fn fixed_cost_compile_times() {
     let mut sh = Shell::new().unwrap();
 
-    let _p = sh.change_dir("tests/data");
+    let _p = sh.set_current_dir("tests/data");
     let baseline = compile_bench(&mut sh, "baseline");
     let _ducted = compile_bench(&sh, "ducted");
     let xshelled = compile_bench(&mut sh, "xshelled");
@@ -14,7 +14,7 @@ fn fixed_cost_compile_times() {
     assert!(1.0 < ratio && ratio < 10.0);
 
     fn compile_bench(sh: &Shell, name: &str) -> Duration {
-        let sh = sh.push_dir(name);
+        let sh = sh.with_current_dir(name);
         let cargo_build = cmd!(sh, "cargo build -q");
         cargo_build.read().unwrap();
 

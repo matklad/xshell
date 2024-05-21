@@ -28,7 +28,7 @@ fn formatting() {
 #[test]
 fn current_version_in_changelog() {
     let mut sh = Shell::new().unwrap();
-    sh.change_dir(env!("CARGO_MANIFEST_DIR"));
+    sh.set_current_dir(env!("CARGO_MANIFEST_DIR"));
     let changelog = sh.read_file("CHANGELOG.md").unwrap();
     let current_version_header = format!("## {}", env!("CARGO_PKG_VERSION"));
     assert_eq!(changelog.lines().filter(|&line| line == current_version_header).count(), 1);
