@@ -966,12 +966,12 @@ impl<'a> Cmd<'a> {
         self.output_impl(false, false).map(|_| ())
     }
 
-    /// Run the command and return its stdout as a string.
+    /// Run the command and return its stdout as a string. Any trailing newline or carriage return will be trimmed.
     pub fn read(&self) -> Result<String> {
         self.read_stream(false)
     }
 
-    /// Run the command and return its stderr as a string.
+    /// Run the command and return its stderr as a string. Any trailing newline or carriage return will be trimmed.
     pub fn read_stderr(&self) -> Result<String> {
         self.read_stream(true)
     }
