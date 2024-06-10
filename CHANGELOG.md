@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- MSRV is raised to 1.63.0
+
 ## 0.2.6
 
 - Implement `Clone` for `Shell`.

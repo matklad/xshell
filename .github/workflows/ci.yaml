@@ -24,12 +24,8 @@ jobs:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: 1.59.0 # Check _only_ MSRV for simplicity.
-          profile: minimal
-          components: rustfmt
-          override: true
+      - run: rustup default 1.63.0 # Check _only_ MSRV for simplicity.
+      - run: rustup component add rustfmt
       - run: cargo run --example ci
 
   publish:
