@@ -27,6 +27,37 @@ enum ErrorKind {
     CmdStdin { err: io::Error, cmd: CmdData },
 }
 
+#[non_exhaustive]
+#[derive(Debug)]
+pub enum XshellErrorKind {
+    Io(io::ErrorKind),
+    Var(env::VarError),
+    Utf8(FromUtf8Error),
+    CmdStatus(ExitStatus),
+}
+
+impl Error {
+    /// Returns the corresponding [`XshellErrorKind`] for this error.
+    pub fn kind(&self) -> XshellErrorKind {
+        use ErrorKind::*;
+        match &*self.kind {
+            ReadFile { err, .. }
+            | ReadDir { err, .. }
+            | WriteFile { err, .. }
+            | CopyFile { err, .. }
+            | HardLink { err, .. }
+            | CreateDir { err, .. }
+            | RemovePath { err, .. }
+            | CmdIo { err, .. }
+            | CmdStdin { err, .. } => XshellErrorKind::Io(err.kind()),
+            CurrentDir { err } => XshellErrorKind::Io(err.kind()),
+            CmdUtf8 { err, .. } => XshellErrorKind::Utf8(err.clone()),
+            Var { err, .. } => XshellErrorKind::Var(err.clone()),
+            CmdStatus { status, .. } => XshellErrorKind::CmdStatus(*status),
+        }
+    }
+}
+
 impl From<ErrorKind> for Error {
     fn from(kind: ErrorKind) -> Error {
         let kind = Box::new(kind);
