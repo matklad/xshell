@@ -55,6 +55,21 @@ fn multiline() {
 }
 
 #[test]
+fn read_with_exit_status() {
+    let sh = setup();
+    let output = cmd!(
+        sh,
+        "
+        xecho hello
+        "
+    )
+    .read_stdout_output()
+    .unwrap();
+    assert_eq!(output.stream_output, "hello");
+    assert!(output.exit_status.success());
+}
+
+#[test]
 fn interpolation() {
     let sh = setup();
 
@@ -183,6 +198,15 @@ fn read_stderr() {
 
     let output = cmd!(sh, "xecho -f -e snafu").ignore_status().read_stderr().unwrap();
     assert!(output.contains("snafu"));
+}
+
+#[test]
+fn read_stderr_with_exit_code() {
+    let sh = setup();
+
+    let output = cmd!(sh, "xecho -f -e snafu").ignore_status().read_stderr_output().unwrap();
+    assert!(output.stream_output.contains("snafu"));
+    assert!(!output.exit_status.success())
 }
 
 #[test]

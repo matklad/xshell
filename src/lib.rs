@@ -720,6 +720,16 @@ impl Drop for PushEnv<'_> {
     }
 }
 
+/// The output of a finished process for specific stream. Another stream will be printed to the corresponds system stream
+#[derive(Debug)]
+pub struct StreamOutput {
+    /// The status (exit code) of the process.
+    pub exit_status: ExitStatus,
+    /// The data that the process wrote to stdout or stderr.
+    /// Any trailing newline or carriage return will be trimmed.
+    pub stream_output: String,
+}
+
 /// A builder object for constructing a subprocess.
 ///
 /// A [`Cmd`] is usually created with the [`cmd!`] macro. The command exists
@@ -968,12 +978,24 @@ impl<'a> Cmd<'a> {
 
     /// Run the command and return its stdout as a string. Any trailing newline or carriage return will be trimmed.
     pub fn read(&self) -> Result<String> {
-        self.read_stream(false)
+        Ok(self.read_stream(false)?.stream_output)
     }
 
-    /// Run the command and return its stderr as a string. Any trailing newline or carriage return will be trimmed.
+    /// Run the command and return its stderr as a string.
     pub fn read_stderr(&self) -> Result<String> {
+        Ok(self.read_stream(true)?.stream_output)
+    }
+
+    /// Run the command and return its stderr as a string and exit status.
+    /// Any trailing newline or carriage return will be trimmed.
+    pub fn read_stderr_output(&self) -> Result<StreamOutput> {
         self.read_stream(true)
+    }
+
+    /// Run the command and return its stdout as a string and exit status.
+    /// Any trailing newline or carriage return will be trimmed.
+    pub fn read_stdout_output(&self) -> Result<StreamOutput> {
+        self.read_stream(false)
     }
 
     /// Run the command and return its output.
@@ -982,7 +1004,7 @@ impl<'a> Cmd<'a> {
     }
     // endregion:running
 
-    fn read_stream(&self, read_stderr: bool) -> Result<String> {
+    fn read_stream(&self, read_stderr: bool) -> Result<StreamOutput> {
         let read_stdout = !read_stderr;
         let output = self.output_impl(read_stdout, read_stderr)?;
         self.check_status(output.status)?;
@@ -997,7 +1019,7 @@ impl<'a> Cmd<'a> {
             stream.pop();
         }
 
-        Ok(stream)
+        Ok(StreamOutput { exit_status: output.status, stream_output: stream })
     }
 
     fn output_impl(&self, read_stdout: bool, read_stderr: bool) -> Result<Output> {
