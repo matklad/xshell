@@ -2,6 +2,9 @@ mod tidy;
 mod env;
 mod compile_failures;
 
+#[cfg(feature = "async")]
+mod async_ext;
+
 use std::{ffi::OsStr, path::Path};
 
 use xshell::{cmd, Shell};

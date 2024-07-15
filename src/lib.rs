@@ -278,6 +278,9 @@
 
 mod error;
 
+#[cfg(feature = "async")]
+mod async_ext;
+
 use std::{
     cell::RefCell,
     collections::HashMap,
