@@ -1,4 +1,7 @@
-use std::{env, ffi::OsString, fmt, io, path::PathBuf, process::ExitStatus, string::FromUtf8Error};
+use std::{
+    env, ffi::OsString, fmt, io, path::PathBuf, process::ExitStatus, string::FromUtf8Error,
+    sync::mpsc::RecvTimeoutError,
+};
 
 use crate::{Cmd, CmdData};
 
@@ -25,6 +28,7 @@ enum ErrorKind {
     CmdIo { err: io::Error, cmd: CmdData },
     CmdUtf8 { err: FromUtf8Error, cmd: CmdData },
     CmdStdin { err: io::Error, cmd: CmdData },
+    CmdTimeout { err: RecvTimeoutError, cmd: CmdData },
 }
 
 impl From<ErrorKind> for Error {
@@ -103,6 +107,9 @@ impl fmt::Display for Error {
             ErrorKind::CmdStdin { err, cmd } => {
                 write!(f, "failed to write to stdin of command `{cmd}`: {err}")
             }
+            ErrorKind::CmdTimeout { err, cmd } => {
+                write!(f, "command excute timeout `{cmd}`: {err}")
+            }
         }?;
         Ok(())
     }
@@ -171,6 +178,11 @@ impl Error {
     pub(crate) fn new_cmd_stdin(cmd: &Cmd<'_>, err: io::Error) -> Error {
         let cmd = cmd.data.clone();
         ErrorKind::CmdStdin { err, cmd }.into()
+    }
+
+    pub(crate) fn new_timeout(cmd: &Cmd<'_>, err: RecvTimeoutError) -> Error {
+        let cmd = cmd.data.clone();
+        ErrorKind::CmdTimeout { err, cmd }.into()
     }
 }
 

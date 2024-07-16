@@ -288,7 +288,12 @@ use std::{
     mem,
     path::{Path, PathBuf},
     process::{Command, ExitStatus, Output, Stdio},
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        mpsc,
+    },
+    thread,
+    time::Duration,
 };
 
 pub use crate::error::{Error, Result};
@@ -963,28 +968,51 @@ impl<'a> Cmd<'a> {
         if !self.data.quiet {
             eprintln!("$ {}", self);
         }
-        self.output_impl(false, false).map(|_| ())
+        self.output_impl(false, false, None).map(|_| ())
+    }
+
+    /// Run the command with a timeout.
+    pub fn run_timeout(&self, timeout: Duration) -> Result<()> {
+        if !self.data.quiet {
+            eprintln!("$ {}", self);
+        }
+        self.output_impl(false, false, Some(timeout)).map(|_| ())
     }
 
     /// Run the command and return its stdout as a string. Any trailing newline or carriage return will be trimmed.
     pub fn read(&self) -> Result<String> {
-        self.read_stream(false)
+        self.read_stream(false, None)
+    }
+
+    /// Run the command with a timeout and return its stdout as a string. Any trailing newline or carriage return will be trimmed.
+    pub fn read_timeout(&self, timeout: Duration) -> Result<String> {
+        self.read_stream(false, Some(timeout))
     }
 
     /// Run the command and return its stderr as a string. Any trailing newline or carriage return will be trimmed.
     pub fn read_stderr(&self) -> Result<String> {
-        self.read_stream(true)
+        self.read_stream(true, None)
+    }
+
+    /// Run the command with a timeout and return its stderr as a string. Any trailing newline or carriage return will be trimmed.
+    pub fn read_stderr_timeout(&self, timeout: Duration) -> Result<String> {
+        self.read_stream(true, Some(timeout))
     }
 
     /// Run the command and return its output.
     pub fn output(&self) -> Result<Output> {
-        self.output_impl(true, true)
+        self.output_impl(true, true, None)
+    }
+
+    /// Run the command with a timeout and return its output.
+    pub fn output_timeout(&self, timeout: Duration) -> Result<Output> {
+        self.output_impl(true, true, Some(timeout))
     }
     // endregion:running
 
-    fn read_stream(&self, read_stderr: bool) -> Result<String> {
+    fn read_stream(&self, read_stderr: bool, timeout: Option<Duration>) -> Result<String> {
         let read_stdout = !read_stderr;
-        let output = self.output_impl(read_stdout, read_stderr)?;
+        let output = self.output_impl(read_stdout, read_stderr, timeout)?;
         self.check_status(output.status)?;
 
         let stream = if read_stderr { output.stderr } else { output.stdout };
@@ -1000,7 +1028,12 @@ impl<'a> Cmd<'a> {
         Ok(stream)
     }
 
-    fn output_impl(&self, read_stdout: bool, read_stderr: bool) -> Result<Output> {
+    fn output_impl(
+        &self,
+        read_stdout: bool,
+        read_stderr: bool,
+        timeout: Option<Duration>,
+    ) -> Result<Output> {
         let mut child = {
             let mut command = self.to_command();
 
@@ -1038,12 +1071,26 @@ impl<'a> Cmd<'a> {
                 stdin.flush()
             }));
         }
-        let out_res = child.wait_with_output();
-        let err_res = io_thread.map(|it| it.join().unwrap());
-        let output = out_res.map_err(|err| Error::new_cmd_io(self, err))?;
-        if let Some(err_res) = err_res {
-            err_res.map_err(|err| Error::new_cmd_stdin(self, err))?;
+
+        let output = if let Some(duration) = timeout {
+            let (sender, receiver) = mpsc::channel();
+            thread::spawn(move || {
+                let output = child.wait_with_output();
+                let _ = sender.send(output);
+            });
+
+            match receiver.recv_timeout(duration) {
+                Ok(output) => output.map_err(|err| Error::new_cmd_io(self, err))?,
+                Err(err) => return Err(Error::new_timeout(self, err)),
+            }
+        } else {
+            child.wait_with_output().map_err(|err| Error::new_cmd_io(self, err))?
+        };
+
+        if let Some(io_thread) = io_thread {
+            io_thread.join().unwrap().map_err(|err| Error::new_cmd_stdin(self, err))?;
         }
+
         self.check_status(output.status)?;
         Ok(output)
     }
