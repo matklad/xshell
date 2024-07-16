@@ -287,10 +287,10 @@ use std::{
     io::{self, ErrorKind, Write},
     mem,
     path::{Path, PathBuf},
-    process::{Command, ExitStatus, Output, Stdio},
+    process::{Child, Command, ExitStatus, Output, Stdio},
     sync::{
         atomic::{AtomicUsize, Ordering},
-        mpsc,
+        mpsc, Arc, Mutex,
     },
     thread,
     time::Duration,
@@ -760,6 +760,7 @@ struct CmdData {
     stdin_contents: Option<Vec<u8>>,
     ignore_stdout: bool,
     ignore_stderr: bool,
+    timeout: Option<Duration>,
 }
 
 // We just store a list of functions to call on the `Command` — the alternative
@@ -807,8 +808,7 @@ impl From<Cmd<'_>> for Command {
 
 impl<'a> Cmd<'a> {
     fn new(shell: &'a Shell, prog: &Path) -> Cmd<'a> {
-        let mut data = CmdData::default();
-        data.prog = prog.to_path_buf();
+        let data = CmdData { prog: prog.to_path_buf(), ..Default::default() };
         Cmd { shell, data }
     }
 
@@ -956,6 +956,12 @@ impl<'a> Cmd<'a> {
     pub fn set_ignore_stderr(&mut self, yes: bool) {
         self.data.ignore_stderr = yes;
     }
+
+    /// Sets a timeout for the command.
+    pub fn timeout(mut self, duration: Duration) -> Cmd<'a> {
+        self.data.timeout = Some(duration);
+        self
+    }
     // endregion:builder
 
     // region:running
@@ -968,51 +974,29 @@ impl<'a> Cmd<'a> {
         if !self.data.quiet {
             eprintln!("$ {}", self);
         }
-        self.output_impl(false, false, None).map(|_| ())
-    }
-
-    /// Run the command with a timeout.
-    pub fn run_timeout(&self, timeout: Duration) -> Result<()> {
-        if !self.data.quiet {
-            eprintln!("$ {}", self);
-        }
-        self.output_impl(false, false, Some(timeout)).map(|_| ())
+        self.output_impl(false, false).map(|_| ())
     }
 
     /// Run the command and return its stdout as a string. Any trailing newline or carriage return will be trimmed.
     pub fn read(&self) -> Result<String> {
-        self.read_stream(false, None)
-    }
-
-    /// Run the command with a timeout and return its stdout as a string. Any trailing newline or carriage return will be trimmed.
-    pub fn read_timeout(&self, timeout: Duration) -> Result<String> {
-        self.read_stream(false, Some(timeout))
+        self.read_stream(false)
     }
 
     /// Run the command and return its stderr as a string. Any trailing newline or carriage return will be trimmed.
     pub fn read_stderr(&self) -> Result<String> {
-        self.read_stream(true, None)
-    }
-
-    /// Run the command with a timeout and return its stderr as a string. Any trailing newline or carriage return will be trimmed.
-    pub fn read_stderr_timeout(&self, timeout: Duration) -> Result<String> {
-        self.read_stream(true, Some(timeout))
+        self.read_stream(true)
     }
 
     /// Run the command and return its output.
     pub fn output(&self) -> Result<Output> {
-        self.output_impl(true, true, None)
+        self.output_impl(true, true)
     }
 
-    /// Run the command with a timeout and return its output.
-    pub fn output_timeout(&self, timeout: Duration) -> Result<Output> {
-        self.output_impl(true, true, Some(timeout))
-    }
     // endregion:running
 
-    fn read_stream(&self, read_stderr: bool, timeout: Option<Duration>) -> Result<String> {
+    fn read_stream(&self, read_stderr: bool) -> Result<String> {
         let read_stdout = !read_stderr;
-        let output = self.output_impl(read_stdout, read_stderr, timeout)?;
+        let output = self.output_impl(read_stdout, read_stderr)?;
         self.check_status(output.status)?;
 
         let stream = if read_stderr { output.stderr } else { output.stdout };
@@ -1028,40 +1012,33 @@ impl<'a> Cmd<'a> {
         Ok(stream)
     }
 
-    fn output_impl(
-        &self,
-        read_stdout: bool,
-        read_stderr: bool,
-        timeout: Option<Duration>,
-    ) -> Result<Output> {
-        let mut child = {
-            let mut command = self.to_command();
+    fn output_impl(&self, read_stdout: bool, read_stderr: bool) -> Result<Output> {
+        let mut command = self.to_command();
 
-            if !self.data.ignore_stdout {
-                command.stdout(if read_stdout { Stdio::piped() } else { Stdio::inherit() });
-            }
-            if !self.data.ignore_stderr {
-                command.stderr(if read_stderr { Stdio::piped() } else { Stdio::inherit() });
-            }
+        if !self.data.ignore_stdout {
+            command.stdout(if read_stdout { Stdio::piped() } else { Stdio::inherit() });
+        }
+        if !self.data.ignore_stderr {
+            command.stderr(if read_stderr { Stdio::piped() } else { Stdio::inherit() });
+        }
 
-            command.stdin(match &self.data.stdin_contents {
-                Some(_) => Stdio::piped(),
-                None => Stdio::null(),
-            });
+        command.stdin(match &self.data.stdin_contents {
+            Some(_) => Stdio::piped(),
+            None => Stdio::null(),
+        });
 
-            command.spawn().map_err(|err| {
-                // Try to determine whether the command failed because the current
-                // directory does not exist. Return an appropriate error in such a
-                // case.
-                if matches!(err.kind(), io::ErrorKind::NotFound) {
-                    let cwd = self.shell.cwd.borrow();
-                    if let Err(err) = cwd.metadata() {
-                        return Error::new_current_dir(err, Some(cwd.clone()));
-                    }
+        let mut child = command.spawn().map_err(|err| {
+            // Try to determine whether the command failed because the current
+            // directory does not exist. Return an appropriate error in such a
+            // case.
+            if matches!(err.kind(), io::ErrorKind::NotFound) {
+                let cwd = self.shell.cwd.borrow();
+                if let Err(err) = cwd.metadata() {
+                    return Error::new_current_dir(err, Some(cwd.clone()));
                 }
-                Error::new_cmd_io(self, err)
-            })?
-        };
+            }
+            Error::new_cmd_io(self, err)
+        })?;
 
         let mut io_thread = None;
         if let Some(stdin_contents) = self.data.stdin_contents.clone() {
@@ -1072,23 +1049,30 @@ impl<'a> Cmd<'a> {
             }));
         }
 
-        let output = if let Some(duration) = timeout {
-            let (sender, receiver) = mpsc::channel();
-            thread::spawn(move || {
+        let out_res = if let Some(timeout) = self.data.timeout {
+            let (tx, rx) = mpsc::channel();
+            let handle = thread::spawn(move || {
                 let output = child.wait_with_output();
-                let _ = sender.send(output);
+                let _ = tx.send(output);
             });
-
-            match receiver.recv_timeout(duration) {
-                Ok(output) => output.map_err(|err| Error::new_cmd_io(self, err))?,
-                Err(err) => return Err(Error::new_timeout(self, err)),
+            handle.join().unwrap();
+            match rx.recv_timeout(timeout) {
+                Ok(output) => output,
+                Err(err) => {
+                    // FIXME: Kill the child, borrow of moved value: `child`
+                    // child.kill();
+                    return Err(Error::new_timeout(self, err));
+                }
             }
         } else {
-            child.wait_with_output().map_err(|err| Error::new_cmd_io(self, err))?
+            child.wait_with_output()
         };
 
-        if let Some(io_thread) = io_thread {
-            io_thread.join().unwrap().map_err(|err| Error::new_cmd_stdin(self, err))?;
+        let output = out_res.map_err(|err| Error::new_cmd_io(self, err))?;
+
+        let err_res = io_thread.map(|it| it.join().unwrap());
+        if let Some(err_res) = err_res {
+            err_res.map_err(|err| Error::new_cmd_stdin(self, err))?;
         }
 
         self.check_status(output.status)?;
