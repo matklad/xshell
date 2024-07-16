@@ -1,6 +1,7 @@
 mod tidy;
 mod env;
 mod compile_failures;
+mod timeout;
 
 use std::{ffi::OsStr, path::Path};
 
