@@ -28,7 +28,7 @@ enum ErrorKind {
     CmdIo { err: io::Error, cmd: CmdData },
     CmdUtf8 { err: FromUtf8Error, cmd: CmdData },
     CmdStdin { err: io::Error, cmd: CmdData },
-    CmdTimeout { err: RecvTimeoutError, cmd: CmdData },
+    CmdTimeout { err: io::Error, cmd: CmdData },
 }
 
 impl From<ErrorKind> for Error {
@@ -180,7 +180,7 @@ impl Error {
         ErrorKind::CmdStdin { err, cmd }.into()
     }
 
-    pub(crate) fn new_timeout(cmd: &Cmd<'_>, err: RecvTimeoutError) -> Error {
+    pub(crate) fn new_timeout(cmd: &Cmd<'_>, err: io::Error) -> Error {
         let cmd = cmd.data.clone();
         ErrorKind::CmdTimeout { err, cmd }.into()
     }

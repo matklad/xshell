@@ -12,13 +12,18 @@ fn setup() -> Shell {
 
     let sh = Shell::new().unwrap();
     let xecho_src = sh.current_dir().join("./tests/data/xecho.rs");
+    let xsleep_src = sh.current_dir().join("./tests/data/xsleep.rs");
     let target_dir = sh.current_dir().join("./target/");
 
     ONCE.call_once(|| {
         cmd!(sh, "rustc {xecho_src} --out-dir {target_dir}")
             .quiet()
             .run()
-            .unwrap_or_else(|err| panic!("failed to install binaries from mock_bin: {}", err))
+            .unwrap_or_else(|err| panic!("failed to install binaries from mock_bin: {}", err));
+        cmd!(sh, "rustc {xsleep_src} --out-dir {target_dir}")
+            .quiet()
+            .run()
+            .unwrap_or_else(|err| panic!("failed to install binaries from mock_bin: {}", err));
     });
 
     sh.set_var("PATH", target_dir);

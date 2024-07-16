@@ -297,6 +297,7 @@ use std::{
 };
 
 pub use crate::error::{Error, Result};
+use process_control::{ChildExt, Control};
 #[doc(hidden)]
 pub use xshell_macros::__cmd;
 
@@ -1050,25 +1051,27 @@ impl<'a> Cmd<'a> {
         }
 
         let out_res = if let Some(timeout) = self.data.timeout {
-            let (tx, rx) = mpsc::channel();
-            let handle = thread::spawn(move || {
-                let output = child.wait_with_output();
-                let _ = tx.send(output);
-            });
-            handle.join().unwrap();
-            match rx.recv_timeout(timeout) {
-                Ok(output) => output,
-                Err(err) => {
-                    // FIXME: Kill the child, borrow of moved value: `child`
-                    // child.kill();
-                    return Err(Error::new_timeout(self, err));
-                }
-            }
+            let output = child
+                .controlled_with_output()
+                .time_limit(timeout)
+                .terminate_for_timeout()
+                .wait()
+                .map_err(|err| Error::new_timeout(self, err))?;
+            // TODO: Convert to std::process::Output
+            output
+                .ok_or_else(|| {
+                    Error::new_timeout(self, io::Error::new(io::ErrorKind::TimedOut, "timeout"))
+                })
+                .map(|output| std::process::Output {
+                    status: output.status.into(),
+                    stdout: output.stdout,
+                    stderr: output.stderr,
+                })
         } else {
-            child.wait_with_output()
+            child.wait_with_output().map_err(|err| Error::new_cmd_io(self, err))
         };
 
-        let output = out_res.map_err(|err| Error::new_cmd_io(self, err))?;
+        let output = out_res?;
 
         let err_res = io_thread.map(|it| it.join().unwrap());
         if let Some(err_res) = err_res {
@@ -1148,7 +1151,7 @@ fn remove_dir_all(path: &Path) -> io::Result<()> {
         if fs::remove_dir_all(path).is_ok() {
             return Ok(());
         }
-        std::thread::sleep(std::time::Duration::from_millis(10))
+        std::thread::xsleep(std::time::Duration::from_millis(10))
     }
     fs::remove_dir_all(path)
 }
