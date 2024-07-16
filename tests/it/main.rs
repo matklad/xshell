@@ -332,7 +332,7 @@ fn test_push_env_and_set_var() {
         let _e = sh.push_env(VAR, "1");
         let e2 = sh.var_os(VAR);
         assert_eq!(e2, Some("1".into()));
-        let _e = sh.set_var(VAR, "2");
+        sh.set_var(VAR, "2");
         let e3 = sh.var_os(VAR);
         assert_eq!(e3, Some("2".into()));
     }
@@ -383,17 +383,17 @@ fn test_copy_file() {
     {
         let tempdir = sh.create_temp_dir().unwrap();
         path = tempdir.path().to_path_buf();
-        let foo = tempdir.path().join("foo.txt");
+        let path_foo = tempdir.path().join("foo.txt");
         let bar = tempdir.path().join("bar.txt");
         let dir = tempdir.path().join("dir");
-        sh.write_file(&foo, "hello world").unwrap();
+        sh.write_file(&path_foo, "hello world").unwrap();
         sh.create_dir(&dir).unwrap();
 
-        sh.copy_file(&foo, &bar).unwrap();
+        sh.copy_file(&path_foo, &bar).unwrap();
         assert_eq!(sh.read_file(&bar).unwrap(), "hello world");
 
-        sh.copy_file(&foo, &dir).unwrap();
-        assert_eq!(sh.read_file(&dir.join("foo.txt")).unwrap(), "hello world");
+        sh.copy_file(&path_foo, &dir).unwrap();
+        assert_eq!(sh.read_file(dir.join("foo.txt")).unwrap(), "hello world");
         assert!(path.exists());
     }
     assert!(!path.exists());
@@ -403,14 +403,14 @@ fn test_copy_file() {
 fn test_exists() {
     let sh = setup();
     let tmp = sh.create_temp_dir().unwrap();
-    let _d = sh.change_dir(tmp.path());
+    sh.change_dir(tmp.path());
     assert!(!sh.path_exists("foo.txt"));
     sh.write_file("foo.txt", "foo").unwrap();
     assert!(sh.path_exists("foo.txt"));
     assert!(!sh.path_exists("bar"));
     sh.create_dir("bar").unwrap();
     assert!(sh.path_exists("bar"));
-    let _d = sh.change_dir("bar");
+    sh.change_dir("bar");
     assert!(!sh.path_exists("quz.rs"));
     sh.write_file("quz.rs", "fn main () {}").unwrap();
     assert!(sh.path_exists("quz.rs"));
