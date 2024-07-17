@@ -22,7 +22,7 @@ fn versions_match() {
 fn formatting() {
     let sh = Shell::new().unwrap();
 
-    cmd!(sh, "cargo fmt --all -- --check").run().unwrap()
+    cmd!(sh, "cargo fmt --all -- --check").run().unwrap();
 }
 
 #[test]

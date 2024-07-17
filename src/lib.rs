@@ -959,11 +959,11 @@ impl<'a> Cmd<'a> {
     /// By default the command itself is echoed to stderr, its standard streams
     /// are inherited, and non-zero return code is considered an error. These
     /// behaviors can be overridden by using various builder methods of the [`Cmd`].
-    pub fn run(&self) -> Result<()> {
+    pub fn run(&self) -> Result<ExitStatus> {
         if !self.data.quiet {
             eprintln!("$ {}", self);
         }
-        self.output_impl(false, false).map(|_| ())
+        self.output_impl(false, false).map(|output| output.status)
     }
 
     /// Run the command and return its stdout as a string. Any trailing newline or carriage return will be trimmed.

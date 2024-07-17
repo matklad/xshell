@@ -17,7 +17,7 @@ fn setup() -> Shell {
         cmd!(sh, "rustc {xecho_src} --out-dir {target_dir}")
             .quiet()
             .run()
-            .unwrap_or_else(|err| panic!("failed to install binaries from mock_bin: {}", err))
+            .unwrap_or_else(|err| panic!("failed to install binaries from mock_bin: {}", err));
     });
 
     sh.set_var("PATH", target_dir);
@@ -175,6 +175,14 @@ fn ignore_status_signal() {
 
     let output = cmd!(sh, "xecho -s dead").ignore_status().read().unwrap();
     assert_eq!(output, "dead");
+}
+
+#[test]
+fn run_ignore_status_exit_status() {
+    let sh = setup();
+    let status = cmd!(sh, "xecho -f fail").ignore_status().run().unwrap();
+    assert!(!status.success());
+    assert_eq!(status.code(), Some(1));
 }
 
 #[test]
