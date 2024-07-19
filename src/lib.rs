@@ -1049,9 +1049,23 @@ impl<'a> Cmd<'a> {
     }
 
     fn to_command(&self) -> Command {
-        let mut res = Command::new(&self.data.prog);
-        res.current_dir(self.shell.current_dir());
-        res.args(&self.data.args);
+        let mut res = if cfg!(windows) {
+            // On windows have to use "cmd /c" workaround to allow batch (command) files
+            let mut res = Command::new("cmd");
+            res.current_dir(self.shell.current_dir());
+            res.args(
+                [OsStr::new("/c"), self.data.prog.as_os_str()]
+                    .iter()
+                    .map(|it| *it)
+                    .chain(self.data.args.iter().map(|it| it.as_os_str())),
+            );
+            res
+        } else {
+            let mut res = Command::new(&self.data.prog);
+            res.current_dir(self.shell.current_dir());
+            res.args(&self.data.args);
+            res
+        };
 
         for (key, val) in &*self.shell.env.borrow() {
             res.env(key, val);
