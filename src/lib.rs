@@ -1108,6 +1108,7 @@ impl<'a> Cmd<'a> {
         return self.data.prog.as_os_str().into();
     }
 
+    #[cfg(windows)]
     fn find_in_paths(&self, paths: Option<&OsString>) -> Option<OsString> {
         paths.and_then(|paths| {
             for folder in env::split_paths(&paths).filter(|p| !p.as_os_str().is_empty()) {
