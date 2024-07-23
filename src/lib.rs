@@ -1048,24 +1048,87 @@ impl<'a> Cmd<'a> {
         Ok(output)
     }
 
+    #[cfg(not(windows))]
+    fn resolve_program(&self) -> OsString {
+        self.data.prog.as_os_str().into()
+    }
+
+    #[cfg(windows)]
+    fn resolve_program(&self) -> OsString {
+        if self.data.prog.extension().is_some() {
+            // fast path for explicit extension
+            return self.data.prog.as_os_str().into();
+        }
+
+        // mimics `search_paths` behavior:
+        // https://github.com/rust-lang/rust/blob/051478957371ee0084a7c0913941d2a8c4757bb9/library/std/src/sys/pal/windows/process.rs#L482
+
+        const ENV_PATH: &str = "PATH";
+
+        // 1. Child paths
+        let paths = self
+            .data
+            .env_changes
+            .iter()
+            .filter_map(|change| match change {
+                EnvChange::Set(name, value) if name.eq_ignore_ascii_case(ENV_PATH) => Some(value),
+                _ => None,
+            })
+            .last();
+
+        if let Some(program_path) = self.find_in_paths(paths) {
+            return program_path;
+        }
+
+        // 2. Application path
+        let paths = env::current_exe().ok().map(|mut path| {
+            path.pop();
+            OsString::from(path)
+        });
+
+        if let Some(program_path) = self.find_in_paths(paths.as_ref()) {
+            return program_path;
+        }
+
+        // 3 & 4. System paths
+        // Sort of compromise: use %SystemRoot% to avoid adding an additional dependency on the `windows` crate.
+        // Usually %SystemRoot% expands to 'C:\WINDOWS' and 'C:\WINDOWS\SYSTEM32' exists in `PATH`,
+        // so the compromise covers both `GetSystemDirectoryW` and `GetWindowsDirectoryW` cases.
+        let paths = self.shell.var_os("SystemRoot");
+        if let Some(program_path) = self.find_in_paths(paths.as_ref()) {
+            return program_path;
+        }
+
+        // 5. Parent paths
+        let paths = self.shell.var_os(ENV_PATH);
+        if let Some(program_path) = self.find_in_paths(paths.as_ref()) {
+            return program_path;
+        }
+
+        return self.data.prog.as_os_str().into();
+    }
+
+    fn find_in_paths(&self, paths: Option<&OsString>) -> Option<OsString> {
+        paths.and_then(|paths| {
+            for folder in env::split_paths(&paths).filter(|p| !p.as_os_str().is_empty()) {
+                for ext in ["cmd", "bat"] {
+                    let path = folder.join(self.data.prog.with_extension(ext));
+                    if std::fs::metadata(&path).is_ok() {
+                        return Some(path.into_os_string());
+                    }
+                }
+            }
+
+            None
+        })
+    }
+
     fn to_command(&self) -> Command {
-        let mut res = if cfg!(windows) {
-            // On windows have to use "cmd /c" workaround to allow batch (command) files
-            let mut res = Command::new("cmd");
-            res.current_dir(self.shell.current_dir());
-            res.args(
-                [OsStr::new("/c"), self.data.prog.as_os_str()]
-                    .iter()
-                    .map(|it| *it)
-                    .chain(self.data.args.iter().map(|it| it.as_os_str())),
-            );
-            res
-        } else {
-            let mut res = Command::new(&self.data.prog);
-            res.current_dir(self.shell.current_dir());
-            res.args(&self.data.args);
-            res
-        };
+        let program = self.resolve_program();
+        let mut res = Command::new(program);
+
+        res.args(&self.data.args);
+        res.current_dir(self.shell.current_dir());
 
         for (key, val) in &*self.shell.env.borrow() {
             res.env(key, val);
