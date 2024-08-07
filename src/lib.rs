@@ -287,11 +287,17 @@ use std::{
     io::{self, ErrorKind, Write},
     mem,
     path::{Path, PathBuf},
-    process::{Command, ExitStatus, Output, Stdio},
-    sync::atomic::{AtomicUsize, Ordering},
+    process::{Child, Command, ExitStatus, Output, Stdio},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        mpsc, Arc, Mutex,
+    },
+    thread,
+    time::Duration,
 };
 
 pub use crate::error::{Error, Result};
+use process_control::{ChildExt, Control};
 #[doc(hidden)]
 pub use xshell_macros::__cmd;
 
@@ -755,6 +761,7 @@ struct CmdData {
     stdin_contents: Option<Vec<u8>>,
     ignore_stdout: bool,
     ignore_stderr: bool,
+    timeout: Option<Duration>,
 }
 
 // We just store a list of functions to call on the `Command` — the alternative
@@ -802,8 +809,7 @@ impl From<Cmd<'_>> for Command {
 
 impl<'a> Cmd<'a> {
     fn new(shell: &'a Shell, prog: &Path) -> Cmd<'a> {
-        let mut data = CmdData::default();
-        data.prog = prog.to_path_buf();
+        let data = CmdData { prog: prog.to_path_buf(), ..Default::default() };
         Cmd { shell, data }
     }
 
@@ -951,6 +957,12 @@ impl<'a> Cmd<'a> {
     pub fn set_ignore_stderr(&mut self, yes: bool) {
         self.data.ignore_stderr = yes;
     }
+
+    /// Sets a timeout for the command.
+    pub fn timeout(mut self, duration: Duration) -> Cmd<'a> {
+        self.data.timeout = Some(duration);
+        self
+    }
     // endregion:builder
 
     // region:running
@@ -980,6 +992,7 @@ impl<'a> Cmd<'a> {
     pub fn output(&self) -> Result<Output> {
         self.output_impl(true, true)
     }
+
     // endregion:running
 
     fn read_stream(&self, read_stderr: bool) -> Result<String> {
@@ -1001,34 +1014,32 @@ impl<'a> Cmd<'a> {
     }
 
     fn output_impl(&self, read_stdout: bool, read_stderr: bool) -> Result<Output> {
-        let mut child = {
-            let mut command = self.to_command();
+        let mut command = self.to_command();
 
-            if !self.data.ignore_stdout {
-                command.stdout(if read_stdout { Stdio::piped() } else { Stdio::inherit() });
-            }
-            if !self.data.ignore_stderr {
-                command.stderr(if read_stderr { Stdio::piped() } else { Stdio::inherit() });
-            }
+        if !self.data.ignore_stdout {
+            command.stdout(if read_stdout { Stdio::piped() } else { Stdio::inherit() });
+        }
+        if !self.data.ignore_stderr {
+            command.stderr(if read_stderr { Stdio::piped() } else { Stdio::inherit() });
+        }
 
-            command.stdin(match &self.data.stdin_contents {
-                Some(_) => Stdio::piped(),
-                None => Stdio::null(),
-            });
+        command.stdin(match &self.data.stdin_contents {
+            Some(_) => Stdio::piped(),
+            None => Stdio::null(),
+        });
 
-            command.spawn().map_err(|err| {
-                // Try to determine whether the command failed because the current
-                // directory does not exist. Return an appropriate error in such a
-                // case.
-                if matches!(err.kind(), io::ErrorKind::NotFound) {
-                    let cwd = self.shell.cwd.borrow();
-                    if let Err(err) = cwd.metadata() {
-                        return Error::new_current_dir(err, Some(cwd.clone()));
-                    }
+        let mut child = command.spawn().map_err(|err| {
+            // Try to determine whether the command failed because the current
+            // directory does not exist. Return an appropriate error in such a
+            // case.
+            if matches!(err.kind(), io::ErrorKind::NotFound) {
+                let cwd = self.shell.cwd.borrow();
+                if let Err(err) = cwd.metadata() {
+                    return Error::new_current_dir(err, Some(cwd.clone()));
                 }
-                Error::new_cmd_io(self, err)
-            })?
-        };
+            }
+            Error::new_cmd_io(self, err)
+        })?;
 
         let mut io_thread = None;
         if let Some(stdin_contents) = self.data.stdin_contents.clone() {
@@ -1038,12 +1049,35 @@ impl<'a> Cmd<'a> {
                 stdin.flush()
             }));
         }
-        let out_res = child.wait_with_output();
+
+        let out_res = if let Some(timeout) = self.data.timeout {
+            let output = child
+                .controlled_with_output()
+                .time_limit(timeout)
+                .terminate_for_timeout()
+                .wait()
+                .map_err(|err| Error::new_timeout(self, err))?;
+            // TODO: Convert to std::process::Output
+            output
+                .ok_or_else(|| {
+                    Error::new_timeout(self, io::Error::new(io::ErrorKind::TimedOut, "timeout"))
+                })
+                .map(|output| std::process::Output {
+                    status: output.status.into(),
+                    stdout: output.stdout,
+                    stderr: output.stderr,
+                })
+        } else {
+            child.wait_with_output().map_err(|err| Error::new_cmd_io(self, err))
+        };
+
+        let output = out_res?;
+
         let err_res = io_thread.map(|it| it.join().unwrap());
-        let output = out_res.map_err(|err| Error::new_cmd_io(self, err))?;
         if let Some(err_res) = err_res {
             err_res.map_err(|err| Error::new_cmd_stdin(self, err))?;
         }
+
         self.check_status(output.status)?;
         Ok(output)
     }
@@ -1117,7 +1151,7 @@ fn remove_dir_all(path: &Path) -> io::Result<()> {
         if fs::remove_dir_all(path).is_ok() {
             return Ok(());
         }
-        std::thread::sleep(std::time::Duration::from_millis(10))
+        std::thread::xsleep(std::time::Duration::from_millis(10))
     }
     fs::remove_dir_all(path)
 }
