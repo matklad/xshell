@@ -345,7 +345,7 @@ pub use xshell_macros::__cmd;
 #[macro_export]
 macro_rules! cmd {
     ($sh:expr, $cmd:literal) => {{
-        #[cfg(trick_rust_analyzer_into_highlighting_interpolated_bits)]
+        #[cfg(any())] // Trick rust analyzer into highlighting interpolated bits
         format_args!($cmd);
         let f = |prog| $sh.cmd(prog);
         let cmd: $crate::Cmd = $crate::__cmd!(f $cmd);
