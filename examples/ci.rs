@@ -27,7 +27,7 @@ fn test(sh: &Shell) -> Result<()> {
     // running this, we've already compiled a  bunch of stuff. Originally we tried to `rm -rf
     // .target`, but we also observed weird SIGKILL: 9 errors on mac. Perhaps its our self-removal?
     // Let's scope it only to linux (windows won't work, bc one can not remove oneself there).
-    if cfg!(linux) {
+    if cfg!(unix) {
         sh.remove_path("./target")?;
     }
 
