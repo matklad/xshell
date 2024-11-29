@@ -171,8 +171,8 @@ fn next_token(s: &str) -> Result<(usize, TokenKind)> {
         let splat = s[..len].ends_with("...}");
         return Ok((len, TokenKind::Interpolation { splat }));
     }
-    if s.starts_with('\'') {
-        let len = s[1..].find('\'').ok_or_else(|| "unclosed `'` in command".to_string())? + 2;
+    if let Some(tail) = s.strip_prefix('\'') {
+        let len = tail.find('\'').ok_or_else(|| "unclosed `'` in command".to_string())? + 2;
         return Ok((len, TokenKind::String));
     }
     let len =
