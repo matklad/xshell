@@ -6,7 +6,7 @@ use crate::setup;
 
 #[test]
 fn test_env() {
-    let sh = setup();
+    let mut sh = setup();
 
     let v1 = "xshell_test_123";
     let v2 = "xshell_test_456";
@@ -34,8 +34,8 @@ fn test_env() {
         );
     }
 
-    let _g1 = sh.push_env(v1, "foobar");
-    let _g2 = sh.push_env(v2, "quark");
+    let _g1 = sh.set_env_var(v1, "foobar");
+    let _g2 = sh.set_env_var(v2, "quark");
 
     assert_env(cmd!(sh, "xecho -$ {v1} {v2}"), &[(v1, Some("foobar")), (v2, Some("quark"))]);
     assert_env(cmd!(cloned_sh, "xecho -$ {v1} {v2}"), &[(v1, None), (v2, None)]);
@@ -58,7 +58,7 @@ fn test_env() {
 
 #[test]
 fn test_env_clear() {
-    let sh = setup();
+    let mut sh = setup();
 
     let v1 = "xshell_test_123";
     let v2 = "xshell_test_456";
@@ -79,8 +79,8 @@ fn test_env_clear() {
         &[(v1, Some("789")), (v2, None)],
     );
 
-    let _g1 = sh.push_env(v1, "foobar");
-    let _g2 = sh.push_env(v2, "quark");
+    let _g1 = sh.set_env_var(v1, "foobar");
+    let _g2 = sh.set_env_var(v2, "quark");
 
     assert_env(cmd!(sh, "{xecho} -$ {v1} {v2}").env_clear(), &[(v1, None), (v2, None)]);
     assert_env(
