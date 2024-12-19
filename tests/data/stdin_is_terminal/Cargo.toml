@@ -1,0 +1,9 @@
+[package]
+name = "stdin_is_terminal"
+version = "0.0.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+is-terminal = "0.4.13"

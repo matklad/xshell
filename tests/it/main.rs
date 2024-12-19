@@ -10,22 +10,33 @@ fn setup() -> Shell {
     static ONCE: std::sync::Once = std::sync::Once::new();
 
     let sh = Shell::new().unwrap();
-    let source_files = [
-        sh.current_dir().join("./tests/data/xecho.rs"),
-        sh.current_dir().join("./tests/data/stdin_is_terminal.rs"),
-    ];
+    let single_file_sources = [sh.current_dir().join("./tests/data/xecho.rs")];
+    let crate_sources = [sh.current_dir().join("./tests/data/stdin_is_terminal/")];
     let target_dir = sh.current_dir().join("./target/");
 
     ONCE.call_once(|| {
-        for src in source_files {
+        for src in single_file_sources {
             cmd!(sh, "rustc {src} --out-dir {target_dir}")
                 .quiet()
                 .run()
                 .unwrap_or_else(|err| panic!("failed to install binaries from mock_bin: {}", err))
         }
+        for src_dir in crate_sources {
+            sh.change_dir(src_dir);
+            cmd!(sh, "cargo build -q --target-dir {target_dir}")
+                .quiet()
+                .run()
+                .unwrap_or_else(|err| panic!("failed to build mock crate: {err}"));
+        }
     });
 
-    sh.set_var("PATH", target_dir);
+    let path_env = std::env::join_paths([
+        &target_dir,
+        &target_dir.join("debug/"),
+        &target_dir.join("release/"),
+    ])
+    .unwrap();
+    sh.set_var("PATH", path_env);
     sh
 }
 
