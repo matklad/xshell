@@ -752,7 +752,7 @@ struct CmdData {
     ignore_status: bool,
     quiet: bool,
     secret: bool,
-    stdin_contents: Option<Vec<u8>>,
+    stdin_mode: StdinMode,
     ignore_stdout: bool,
     ignore_stderr: bool,
 }
@@ -766,6 +766,33 @@ enum EnvChange {
     Set(OsString, OsString),
     Remove(OsString),
     Clear,
+}
+
+#[derive(Debug, Clone, Default)]
+enum StdinMode {
+    /// Default mode.
+    #[default]
+    Null,
+    /// `Cmd::inherit_stdin`.
+    Inherited,
+    /// `Cmd::stdin`.
+    Piped(Vec<u8>),
+}
+impl StdinMode {
+    fn set_inherited(&mut self) {
+        match self {
+            Self::Null => *self = Self::Inherited,
+            Self::Inherited => {} // ignore
+            Self::Piped(_) => panic!("Cmd::inherit_stdin is mutually-exclusive with Cmd::stdin"),
+        }
+    }
+    fn set_piped(&mut self, data: Vec<u8>) {
+        match self {
+            Self::Null => *self = Self::Piped(data),
+            Self::Inherited => panic!("Cmd::stdin is mutually-exclusive with Cmd::inherit_stdin"),
+            Self::Piped(_) => *self = Self::Piped(data), // replace
+        }
+    }
 }
 
 impl fmt::Display for Cmd<'_> {
@@ -917,13 +944,23 @@ impl<'a> Cmd<'a> {
         self.data.secret = yes;
     }
 
+    /// Inherit standard input of the parent shell.
+    ///
+    /// Mutually-exclusive with [`Cmd::stdin`].
+    pub fn inherit_stdin(mut self) -> Cmd<'a> {
+        self.data.stdin_mode.set_inherited();
+        self
+    }
+
     /// Pass the given slice to the standard input of the spawned process.
+    ///
+    /// Mutually-exclusive with [`Cmd::inherit_stdin`].
     pub fn stdin(mut self, stdin: impl AsRef<[u8]>) -> Cmd<'a> {
         self._stdin(stdin.as_ref());
         self
     }
     fn _stdin(&mut self, stdin: &[u8]) {
-        self.data.stdin_contents = Some(stdin.to_vec());
+        self.data.stdin_mode.set_piped(stdin.to_vec());
     }
 
     /// Ignores the standard output stream of the process.
@@ -1011,9 +1048,10 @@ impl<'a> Cmd<'a> {
                 command.stderr(if read_stderr { Stdio::piped() } else { Stdio::inherit() });
             }
 
-            command.stdin(match &self.data.stdin_contents {
-                Some(_) => Stdio::piped(),
-                None => Stdio::null(),
+            command.stdin(match &self.data.stdin_mode {
+                StdinMode::Null => Stdio::null(),
+                StdinMode::Inherited => Stdio::inherit(),
+                StdinMode::Piped(_) => Stdio::piped(),
             });
 
             command.spawn().map_err(|err| {
@@ -1031,7 +1069,7 @@ impl<'a> Cmd<'a> {
         };
 
         let mut io_thread = None;
-        if let Some(stdin_contents) = self.data.stdin_contents.clone() {
+        if let StdinMode::Piped(stdin_contents) = self.data.stdin_mode.clone() {
             let mut stdin = child.stdin.take().unwrap();
             io_thread = Some(std::thread::spawn(move || {
                 stdin.write_all(&stdin_contents)?;

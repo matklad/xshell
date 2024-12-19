@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add `Cmd::inherit_stdin` to support pre-0.2.3 behaviour #98
+
 ## 0.2.7
 
 - MSRV is raised to 1.63.0

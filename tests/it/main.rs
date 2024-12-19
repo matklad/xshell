@@ -10,17 +10,33 @@ fn setup() -> Shell {
     static ONCE: std::sync::Once = std::sync::Once::new();
 
     let sh = Shell::new().unwrap();
-    let xecho_src = sh.current_dir().join("./tests/data/xecho.rs");
+    let single_file_sources = [sh.current_dir().join("./tests/data/xecho.rs")];
+    let crate_sources = [sh.current_dir().join("./tests/data/stdin_is_terminal/")];
     let target_dir = sh.current_dir().join("./target/");
 
     ONCE.call_once(|| {
-        cmd!(sh, "rustc {xecho_src} --out-dir {target_dir}")
-            .quiet()
-            .run()
-            .unwrap_or_else(|err| panic!("failed to install binaries from mock_bin: {}", err))
+        for src in single_file_sources {
+            cmd!(sh, "rustc {src} --out-dir {target_dir}")
+                .quiet()
+                .run()
+                .unwrap_or_else(|err| panic!("failed to install binaries from mock_bin: {}", err))
+        }
+        for src_dir in crate_sources {
+            sh.change_dir(src_dir);
+            cmd!(sh, "cargo build -q --target-dir {target_dir}")
+                .quiet()
+                .run()
+                .unwrap_or_else(|err| panic!("failed to build mock crate: {err}"));
+        }
     });
 
-    sh.set_var("PATH", target_dir);
+    let path_env = std::env::join_paths([
+        &target_dir,
+        &target_dir.join("debug/"),
+        &target_dir.join("release/"),
+    ])
+    .unwrap();
+    sh.set_var("PATH", path_env);
     sh
 }
 
@@ -208,6 +224,22 @@ fn escape() {
 
     let output = cmd!(sh, "xecho \\hello\\ '\\world\\'").read().unwrap();
     assert_eq!(output, r#"\hello\ \world\"#)
+}
+
+#[test]
+fn inherit_stdin() {
+    let sh = setup();
+
+    let res = cmd!(sh, "stdin_is_terminal").inherit_stdin().run();
+    assert!(res.is_ok());
+}
+
+#[test]
+fn no_inherit_stdin() {
+    let sh = setup();
+
+    let res = cmd!(sh, "stdin_is_terminal").run();
+    assert!(res.is_err());
 }
 
 #[test]
