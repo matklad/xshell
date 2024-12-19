@@ -38,7 +38,8 @@ fn test(sh: &Shell) -> Result<()> {
 
     {
         let _s = Section::new("TEST");
-        cmd!(sh, "cargo test --workspace").run()?;
+        // inherit_stdin tests are skipped because they require an interactive terminal
+        cmd!(sh, "cargo test --workspace -- --skip inherit_stdin").run()?;
     }
     Ok(())
 }
