@@ -1,6 +1,14 @@
-use std::{env, ffi::OsString, fmt, io, path::PathBuf, process::ExitStatus, string::FromUtf8Error};
+use std::{
+    env,
+    ffi::OsString,
+    fmt, io,
+    path::{Path, PathBuf},
+    process::ExitStatus,
+    string::FromUtf8Error,
+    sync::Arc,
+};
 
-use crate::{Cmd, CmdData};
+use crate::Cmd;
 
 /// `Result` from std, with the error type defaulting to xshell's [`Error`].
 pub type Result<T, E = Error> = std::result::Result<T, E>;
@@ -12,7 +20,7 @@ pub struct Error {
 
 /// Note: this is intentionally not public.
 enum ErrorKind {
-    CurrentDir { err: io::Error, path: Option<PathBuf> },
+    CurrentDir { err: io::Error, path: Option<Arc<Path>> },
     Var { err: env::VarError, var: OsString },
     ReadFile { err: io::Error, path: PathBuf },
     ReadDir { err: io::Error, path: PathBuf },
@@ -21,10 +29,10 @@ enum ErrorKind {
     HardLink { err: io::Error, src: PathBuf, dst: PathBuf },
     CreateDir { err: io::Error, path: PathBuf },
     RemovePath { err: io::Error, path: PathBuf },
-    CmdStatus { cmd: CmdData, status: ExitStatus },
-    CmdIo { err: io::Error, cmd: CmdData },
-    CmdUtf8 { err: FromUtf8Error, cmd: CmdData },
-    CmdStdin { err: io::Error, cmd: CmdData },
+    CmdStatus { cmd: Cmd, status: ExitStatus },
+    CmdIo { err: io::Error, cmd: Cmd },
+    CmdUtf8 { err: FromUtf8Error, cmd: Cmd },
+    CmdStdin { err: io::Error, cmd: Cmd },
 }
 
 impl From<ErrorKind> for Error {
@@ -91,7 +99,7 @@ impl fmt::Display for Error {
             },
             ErrorKind::CmdIo { err, cmd } => {
                 if err.kind() == io::ErrorKind::NotFound {
-                    let prog = cmd.prog.display();
+                    let prog = cmd.prog.as_path().display();
                     write!(f, "command not found: `{prog}`")
                 } else {
                     write!(f, "io error when running command `{cmd}`: {err}")
@@ -117,7 +125,7 @@ impl std::error::Error for Error {}
 
 /// `pub(crate)` constructors, visible only in this crate.
 impl Error {
-    pub(crate) fn new_current_dir(err: io::Error, path: Option<PathBuf>) -> Error {
+    pub(crate) fn new_current_dir(err: io::Error, path: Option<Arc<Path>>) -> Error {
         ErrorKind::CurrentDir { err, path }.into()
     }
 
@@ -153,23 +161,23 @@ impl Error {
         ErrorKind::RemovePath { err, path }.into()
     }
 
-    pub(crate) fn new_cmd_status(cmd: &Cmd<'_>, status: ExitStatus) -> Error {
-        let cmd = cmd.data.clone();
+    pub(crate) fn new_cmd_status(cmd: &Cmd, status: ExitStatus) -> Error {
+        let cmd = cmd.clone();
         ErrorKind::CmdStatus { cmd, status }.into()
     }
 
-    pub(crate) fn new_cmd_io(cmd: &Cmd<'_>, err: io::Error) -> Error {
-        let cmd = cmd.data.clone();
+    pub(crate) fn new_cmd_io(cmd: &Cmd, err: io::Error) -> Error {
+        let cmd = cmd.clone();
         ErrorKind::CmdIo { err, cmd }.into()
     }
 
-    pub(crate) fn new_cmd_utf8(cmd: &Cmd<'_>, err: FromUtf8Error) -> Error {
-        let cmd = cmd.data.clone();
+    pub(crate) fn new_cmd_utf8(cmd: &Cmd, err: FromUtf8Error) -> Error {
+        let cmd = cmd.clone();
         ErrorKind::CmdUtf8 { err, cmd }.into()
     }
 
-    pub(crate) fn new_cmd_stdin(cmd: &Cmd<'_>, err: io::Error) -> Error {
-        let cmd = cmd.data.clone();
+    pub(crate) fn new_cmd_stdin(cmd: &Cmd, err: io::Error) -> Error {
+        let cmd = cmd.clone();
         ErrorKind::CmdStdin { err, cmd }.into()
     }
 }
