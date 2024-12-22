@@ -15,7 +15,6 @@ fn setup() -> Shell {
 
     ONCE.call_once(|| {
         cmd!(sh, "rustc {xecho_src} --out-dir {target_dir}")
-            .quiet()
             .run()
             .unwrap_or_else(|err| panic!("failed to install binaries from mock_bin: {}", err))
     });
@@ -332,41 +331,6 @@ fn test_push_env_and_set_env_var() {
 }
 
 #[test]
-fn output_with_ignore() {
-    let sh = setup();
-
-    let output = cmd!(sh, "xecho -e 'hello world!'").ignore_stdout().output().unwrap();
-    assert_eq!(output.stderr, b"hello world!\n");
-    assert_eq!(output.stdout, b"");
-
-    let output = cmd!(sh, "xecho -e 'hello world!'").ignore_stderr().output().unwrap();
-    assert_eq!(output.stdout, b"hello world!\n");
-    assert_eq!(output.stderr, b"");
-
-    let output =
-        cmd!(sh, "xecho -e 'hello world!'").ignore_stdout().ignore_stderr().output().unwrap();
-    assert_eq!(output.stdout, b"");
-    assert_eq!(output.stderr, b"");
-}
-
-#[test]
-fn test_read_with_ignore() {
-    let sh = setup();
-
-    let stdout = cmd!(sh, "xecho -e 'hello world'").ignore_stdout().read().unwrap();
-    assert!(stdout.is_empty());
-
-    let stderr = cmd!(sh, "xecho -e 'hello world'").ignore_stderr().read_stderr().unwrap();
-    assert!(stderr.is_empty());
-
-    let stdout = cmd!(sh, "xecho -e 'hello world!'").ignore_stderr().read().unwrap();
-    assert_eq!(stdout, "hello world!");
-
-    let stderr = cmd!(sh, "xecho -e 'hello world!'").ignore_stdout().read_stderr().unwrap();
-    assert_eq!(stderr, "hello world!");
-}
-
-#[test]
 fn test_copy_file() {
     let sh = setup();
 
@@ -380,10 +344,10 @@ fn test_copy_file() {
         sh.write_file(&foo, "hello world").unwrap();
         sh.create_dir(&dir).unwrap();
 
-        sh.copy_file(&foo, &bar).unwrap();
+        sh.copy_file_to_path(&foo, &bar).unwrap();
         assert_eq!(sh.read_file(&bar).unwrap(), "hello world");
 
-        sh.copy_file(&foo, &dir).unwrap();
+        sh.copy_file_to_dir(&foo, &dir).unwrap();
         assert_eq!(sh.read_file(&dir.join("foo.txt")).unwrap(), "hello world");
         assert!(path.exists());
     }

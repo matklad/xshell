@@ -33,12 +33,12 @@ fn test(sh: &Shell) -> Result<()> {
 
     {
         let _s = Section::new("BUILD");
-        cmd!(sh, "cargo test --workspace --no-run").run()?;
+        cmd!(sh, "cargo test --workspace --no-run").run_echo()?;
     }
 
     {
         let _s = Section::new("TEST");
-        cmd!(sh, "cargo test --workspace").run()?;
+        cmd!(sh, "cargo test --workspace").run_echo()?;
     }
     Ok(())
 }
@@ -58,10 +58,10 @@ fn publish(sh: &Shell) -> Result<()> {
     if current_branch == "master" && !tag_exists {
         // Could also just use `CARGO_REGISTRY_TOKEN` environmental variable.
         let token = sh.env_var("CRATES_IO_TOKEN").unwrap_or("DUMMY_TOKEN".to_string());
-        cmd!(sh, "git tag v{version}").run()?;
-        cmd!(sh, "cargo publish --token {token} --package xshell-macros").run()?;
-        cmd!(sh, "cargo publish --token {token} --package xshell").run()?;
-        cmd!(sh, "git push --tags").run()?;
+        cmd!(sh, "git tag v{version}").run_echo()?;
+        cmd!(sh, "cargo publish --token {token} --package xshell-macros").run_echo()?;
+        cmd!(sh, "cargo publish --token {token} --package xshell").run_echo()?;
+        cmd!(sh, "git push --tags").run_echo()?;
     }
     Ok(())
 }

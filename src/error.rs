@@ -8,7 +8,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::Cmd;
+use crate::{Cmd, STREAM_SUFFIX_SIZE};
 
 /// `Result` from std, with the error type defaulting to xshell's [`Error`].
 pub type Result<T, E = Error> = std::result::Result<T, E>;
@@ -29,10 +29,7 @@ enum ErrorKind {
     HardLink { err: io::Error, src: PathBuf, dst: PathBuf },
     CreateDir { err: io::Error, path: PathBuf },
     RemovePath { err: io::Error, path: PathBuf },
-    CmdStatus { cmd: Cmd, status: ExitStatus },
-    CmdIo { err: io::Error, cmd: Cmd },
-    CmdUtf8 { err: FromUtf8Error, cmd: Cmd },
-    CmdStdin { err: io::Error, cmd: Cmd },
+    Cmd(CmdError),
 }
 
 impl From<ErrorKind> for Error {
@@ -40,6 +37,20 @@ impl From<ErrorKind> for Error {
         let kind = Box::new(kind);
         Error { kind }
     }
+}
+
+struct CmdError {
+    cmd: Cmd,
+    kind: CmdErrorKind,
+    stdout: Vec<u8>,
+    stderr: Vec<u8>,
+}
+
+pub(crate) enum CmdErrorKind {
+    Io(io::Error),
+    Utf8(FromUtf8Error),
+    Status(ExitStatus),
+    Timeout,
 }
 
 impl fmt::Display for Error {
@@ -84,33 +95,7 @@ impl fmt::Display for Error {
                 let path = path.display();
                 write!(f, "failed to remove path `{path}`: {err}")
             }
-            ErrorKind::CmdStatus { cmd, status } => match status.code() {
-                Some(code) => write!(f, "command exited with non-zero code `{cmd}`: {code}"),
-                #[cfg(unix)]
-                None => {
-                    use std::os::unix::process::ExitStatusExt;
-                    match status.signal() {
-                        Some(sig) => write!(f, "command was terminated by a signal `{cmd}`: {sig}"),
-                        None => write!(f, "command was terminated by a signal `{cmd}`"),
-                    }
-                }
-                #[cfg(not(unix))]
-                None => write!(f, "command was terminated by a signal `{cmd}`"),
-            },
-            ErrorKind::CmdIo { err, cmd } => {
-                if err.kind() == io::ErrorKind::NotFound {
-                    let prog = cmd.prog.as_path().display();
-                    write!(f, "command not found: `{prog}`")
-                } else {
-                    write!(f, "io error when running command `{cmd}`: {err}")
-                }
-            }
-            ErrorKind::CmdUtf8 { err, cmd } => {
-                write!(f, "failed to decode output of command `{cmd}`: {err}")
-            }
-            ErrorKind::CmdStdin { err, cmd } => {
-                write!(f, "failed to write to stdin of command `{cmd}`: {err}")
-            }
+            ErrorKind::Cmd(cmd) => fmt::Display::fmt(cmd, f),
         }?;
         Ok(())
     }
@@ -122,6 +107,58 @@ impl fmt::Debug for Error {
     }
 }
 impl std::error::Error for Error {}
+
+impl fmt::Display for CmdError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let nl = if (self.stdout.len() > 0 || self.stderr.len() > 0)
+            && !matches!(self.kind, CmdErrorKind::Utf8(_))
+        {
+            "\n"
+        } else {
+            ""
+        };
+        let cmd = &self.cmd;
+        match &self.kind {
+            CmdErrorKind::Status(status) => match status.code() {
+                Some(code) => write!(f, "command exited with non-zero code `{cmd}`: {code}{nl}")?,
+                #[cfg(unix)]
+                None => {
+                    use std::os::unix::process::ExitStatusExt;
+                    match status.signal() {
+                        Some(sig) => {
+                            write!(f, "command was terminated by a signal `{cmd}`: {sig}{nl}")?
+                        }
+                        None => write!(f, "command was terminated by a signal `{cmd}`{nl}")?,
+                    }
+                }
+                #[cfg(not(unix))]
+                None => write!(f, "command was terminated by a signal `{cmd}`{nl}"),
+            },
+            CmdErrorKind::Utf8(err) => {
+                write!(f, "command produced invalid utf-8 `{cmd}`: {err}")?;
+                return Ok(());
+            }
+            CmdErrorKind::Io(err) => {
+                if err.kind() == io::ErrorKind::NotFound {
+                    let prog = self.cmd.prog.as_path().display();
+                    write!(f, "command not found: `{prog}`{nl}")?;
+                } else {
+                    write!(f, "io error when running command `{cmd}`: {err}{nl}")?;
+                }
+            }
+            CmdErrorKind::Timeout => {
+                write!(f, "command timed out `{cmd}`{nl}")?;
+            }
+        }
+        if self.stdout.len() > 0 {
+            write!(f, "stdout suffix\n:{}\n", String::from_utf8_lossy(&self.stdout))?;
+        }
+        if self.stderr.len() > 0 {
+            write!(f, "stderr suffix:\n:{}\n", String::from_utf8_lossy(&self.stderr))?;
+        }
+        Ok(())
+    }
+}
 
 /// `pub(crate)` constructors, visible only in this crate.
 impl Error {
@@ -161,24 +198,33 @@ impl Error {
         ErrorKind::RemovePath { err, path }.into()
     }
 
-    pub(crate) fn new_cmd_status(cmd: &Cmd, status: ExitStatus) -> Error {
-        let cmd = cmd.clone();
-        ErrorKind::CmdStatus { cmd, status }.into()
-    }
+    pub(crate) fn new_cmd(
+        cmd: &Cmd,
+        kind: CmdErrorKind,
+        mut stdout: Vec<u8>,
+        mut stderr: Vec<u8>,
+    ) -> Error {
+        // Try to determine whether the command failed because the current
+        // directory does not exist. Return an appropriate error in such a
+        // case.
+        if let CmdErrorKind::Io(err) = &kind {
+            if err.kind() == io::ErrorKind::NotFound {
+                if let Err(err) = cmd.sh.cwd.metadata() {
+                    return Error::new_current_dir(err, Some(cmd.sh.cwd.clone()));
+                }
+            }
+        }
 
-    pub(crate) fn new_cmd_io(cmd: &Cmd, err: io::Error) -> Error {
-        let cmd = cmd.clone();
-        ErrorKind::CmdIo { err, cmd }.into()
-    }
+        fn trim(xs: &mut Vec<u8>, size: usize) {
+            if xs.len() > size {
+                xs.drain(..xs.len() - size);
+            }
+        }
 
-    pub(crate) fn new_cmd_utf8(cmd: &Cmd, err: FromUtf8Error) -> Error {
         let cmd = cmd.clone();
-        ErrorKind::CmdUtf8 { err, cmd }.into()
-    }
-
-    pub(crate) fn new_cmd_stdin(cmd: &Cmd, err: io::Error) -> Error {
-        let cmd = cmd.clone();
-        ErrorKind::CmdStdin { err, cmd }.into()
+        trim(&mut stdout, STREAM_SUFFIX_SIZE);
+        trim(&mut stderr, STREAM_SUFFIX_SIZE);
+        ErrorKind::Cmd(CmdError { cmd, kind, stdout, stderr }).into()
     }
 }
 
