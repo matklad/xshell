@@ -276,24 +276,29 @@
 #![deny(missing_docs)]
 #![deny(rust_2018_idioms)]
 
+mod exec3;
 mod error;
 
 use std::{
     collections::HashMap,
     env::{self, current_dir, VarError},
     ffi::{OsStr, OsString},
-    fmt, fs,
+    fmt::{self, Display},
+    fs,
     io::{self, ErrorKind, Write},
     mem,
+    os::unix::process::CommandExt,
     path::{Path, PathBuf},
     process::{Command, ExitStatus, Output, Stdio},
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
     },
+    time::Instant,
 };
 
 pub use crate::error::{Error, Result};
+use error::CmdErrorKind;
 #[doc(hidden)]
 pub use xshell_macros::__cmd;
 
@@ -388,8 +393,6 @@ pub struct Shell {
     env: Arc<HashMap<Arc<OsStr>, Arc<OsStr>>>,
 }
 
-impl std::panic::UnwindSafe for Shell {}
-impl std::panic::RefUnwindSafe for Shell {}
 /// You can use `Shell` in a tree manner by cloning the shell and modifying the `cwd`/`env` as needed.
 impl Shell {
     /// Creates a new [`Shell`].
@@ -400,7 +403,6 @@ impl Shell {
         Ok(Shell { cwd: cwd.into(), env: Default::default() })
     }
 
-    // region:env
     /// Returns the working directory for this [`Shell`].
     ///
     /// All relative paths are interpreted relative to this directory, rather
@@ -414,11 +416,11 @@ impl Shell {
     ///
     /// Note that this doesn't affect [`std::env::current_dir`].
     #[doc(alias = "cd")]
-    pub fn set_current_dir(&mut self, dir: impl AsRef<Path>) {
-        self._set_current_dir(dir.as_ref().as_ref())
-    }
-    fn _set_current_dir(&mut self, dir: &OsStr) {
-        self.cwd = self.cwd.join(dir).into();
+    pub fn set_current_dir(&mut self, path: impl AsRef<Path>) {
+        fn inner(sh: &mut Shell, path: &OsStr) {
+            sh.cwd = sh.cwd.join(path).into();
+        }
+        inner(self, path.as_ref().as_os_str());
     }
 
     /// Returns a new [`Shell`] with the working directory set to `path`.
@@ -426,11 +428,11 @@ impl Shell {
     /// Note that this doesn't affect [`std::env::current_dir`].
     #[doc(alias = "pushd")]
     #[must_use]
-    pub fn with_current_dir(&self, path: impl AsRef<Path>) -> Self {
-        self._with_current_dir(path.as_ref())
-    }
-    fn _with_current_dir(&self, path: &Path) -> Self {
-        Self { cwd: self.cwd.join(path).into(), env: self.env.clone() }
+    pub fn with_current_dir(&self, path: impl AsRef<Path>) -> Shell {
+        fn inner(sh: &Shell, path: &OsStr) -> Shell {
+            Shell { cwd: sh.cwd.join(path).into(), env: sh.env.clone() }
+        }
+        inner(self, path.as_ref().as_os_str())
     }
 
     /// Fetches the environmental variable `key` for this [`Shell`].
@@ -440,17 +442,15 @@ impl Shell {
     /// Environment of the [`Shell`] affects all commands spawned via this
     /// shell.
     pub fn env_var(&self, key: impl AsRef<OsStr>) -> Result<String> {
-        self._env_var(key.as_ref())
-    }
-    fn _env_var(&self, key: &OsStr) -> Result<String> {
-        match self._env_var_os(key) {
-            Some(it) => match it.to_str() {
-                Some(it) => Ok(it.to_string()),
-                None => Err(VarError::NotUnicode(key.into())),
-            },
-            None => Err(VarError::NotPresent),
+        fn inner(sh: &Shell, key: &OsStr) -> Result<String> {
+            let env_os =
+                sh.env_var_os(key).ok_or_else(VarError::NotPresent).map_err(Error::new_var)?;
+            env_os
+                .into_string()
+                .ok_or_else(|| VarError::NotUnicode(env_os))
+                .map_err(Error::new_var)?
         }
-        .map_err(|err| Error::new_var(err, key.into()))
+        inner(self, key.as_ref())
     }
 
     /// Fetches the environmental variable `key` for this [`Shell`] as
@@ -458,11 +458,11 @@ impl Shell {
     ///
     /// Environment of the [`Shell`] affects all commands spawned via this
     /// shell.
-    pub fn env_var_os(&self, key: impl AsRef<OsStr>) -> Option<Arc<OsStr>> {
-        self._env_var_os(key.as_ref())
-    }
-    fn _env_var_os(&self, key: &OsStr) -> Option<Arc<OsStr>> {
-        self.env.get(key).cloned().or_else(|| env::var_os(key).map(Into::into))
+    pub fn env_var_os(&self, key: impl AsRef<OsStr>) -> Option<OsString> {
+        fn inner(&self, key: &OsStr) -> Option<OsString> {
+            self.env.get(key).map(|it| it.to_owned()).or_else(|| env::var_os(key))
+        }
+        inner(self, key.as_ref())
     }
 
     /// Fetches the whole environment as a `(Key, Value)` iterator for this [`Shell`].
@@ -471,75 +471,52 @@ impl Shell {
     ///
     /// Environment of the [`Shell`] affects all commands spawned via this
     /// shell.
-    pub fn env_vars(&self) -> Result<impl Iterator<Item = (&str, &str)>> {
-        if let Some((key, _)) =
-            self.env_vars_os().find(|(a, b)| a.to_str().or(b.to_str()).is_none())
-        {
-            return Err(Error::new_var(VarError::NotUnicode(key.into()), key.into()));
-        }
-        Ok(self.env_vars_os().map(|(k, v)| (k.to_str().unwrap(), v.to_str().unwrap())))
+    pub fn env_vars_os(&self) -> HashMap<(OsString, OsString)> {
+        let mut result: HashMap<OsString, OsString> = Default::default();
+        result.extend(std::evn::vars_os());
+        result.extend(self.env.iter().map(|(k, v)| (k.to_owned(), v.to_owned())));
+        result
     }
 
-    /// Fetches the whole environment as a `(Key, Value)` iterator for this [`Shell`].
-    ///
-    /// Environment of the [`Shell`] affects all commands spawned via this
-    /// shell.
-    pub fn env_vars_os(&self) -> impl Iterator<Item = (&OsStr, &OsStr)> {
-        self.env.iter().map(|(k, v)| (k.as_ref(), v.as_ref()))
-    }
-
-    /// Sets the value of `key` environment variable for this [`Shell`] to
-    /// `val`.
+    /// Sets the value of `key` environment variable for this [`Shell`] to `value`.
     ///
     /// Note that this doesn't affect [`std::env::var`].
-    pub fn set_env_var(&mut self, key: impl AsRef<OsStr>, val: impl AsRef<OsStr>) {
-        self._set_env_var(key.as_ref(), val.as_ref())
-    }
-    fn _set_env_var(&mut self, key: &OsStr, val: &OsStr) {
-        Arc::make_mut(&mut self.env).insert(key.into(), val.into());
+    pub fn set_env_var(&mut self, key: impl AsRef<OsStr>, value: impl AsRef<OsStr>) {
+        fn inner(sh: &mut Shell, key: &OsStr, value: &OsStr) {
+            Arc::make_mut(&mut sh.env).insert(key.into(), value.into());
+        }
+        inner(self, key.as_ref(), value.as_ref());
     }
 
-    // endregion:env
+    /// Returns a new [`Shell`] with environmental variable `key` set to `value`.
+    ///
+    /// Note that this doesn't affect [`std::env::var`].
+    pub fn with_env_var(&self, key: impl AsRef<OsStr>, value: impl AsRef<OsStr>) -> Shell {
+        fn inner(sh: &Shell, key: &OsStr, value: &OsStr) -> Sell {
+            let mut env = Arc::clone(&sh.env);
+            Arc::make_mut(&mut env).insert(key.into(), value.into());
+            Shell { cwd: sh.cwd.clone(), env }
+        }
+        inner(self, key.as_ref(), value.as_ref())
+    }
 
-    // region:fs
-    /// Read the entire contents of a file into a string.
+    /// Read an utf-8 encoded text file into string.
     #[doc(alias = "cat")]
-    pub fn read_file<P: AsRef<Path>>(&self, path: P) -> Result<String> {
-        self._read_file(path.as_ref())
-    }
-    fn _read_file(&self, path: &Path) -> Result<String> {
-        let path = self.path(path);
-        fs::read_to_string(&path).map_err(|err| Error::new_read_file(err, path))
-    }
-
-    /// Read the entire contents of a file into a vector of bytes.
-    pub fn read_binary_file<P: AsRef<Path>>(&self, path: P) -> Result<Vec<u8>> {
-        self._read_binary_file(path.as_ref())
-    }
-    fn _read_binary_file(&self, path: &Path) -> Result<Vec<u8>> {
-        let path = self.path(path);
-        fs::read(&path).map_err(|err| Error::new_read_file(err, path))
+    pub fn read_file(&self, path: impl AsRef<Path>) -> Result<String> {
+        fn inner(sh: &Shell, path: &Path) -> Result<String> {
+            let path = sh.path(path);
+            fs::read_to_string(&path).map_err(|err| Error::new_read_file(err, path))
+        }
+        inner(self, path.as_ref())
     }
 
-    /// Returns a sorted list of paths directly contained in the directory at
-    /// `path`.
-    #[doc(alias = "ls")]
-    pub fn read_dir<P: AsRef<Path>>(&self, path: P) -> Result<Vec<PathBuf>> {
-        self._read_dir(path.as_ref())
-    }
-    fn _read_dir(&self, path: &Path) -> Result<Vec<PathBuf>> {
-        let path = self.path(path);
-        let mut res = Vec::new();
-        || -> _ {
-            for entry in fs::read_dir(&path)? {
-                let entry = entry?;
-                res.push(entry.path())
-            }
-            Ok(())
-        }()
-        .map_err(|err| Error::new_read_dir(err, path))?;
-        res.sort();
-        Ok(res)
+    /// Read a file into a vector of bytes.
+    pub fn read_binary_file(&self, path: impl AsRef<Path>) -> Result<Vec<u8>> {
+        fn inner(sh: &Shell, path: &Path) -> Result<Vec<u8>> {
+            let path = sh.path(path);
+            fs::read(&path).map_err(|err| Error::new_read_file(err, path))
+        }
+        inner(self, path.as_ref())
     }
 
     /// Write a slice as the entire contents of a file.
@@ -547,60 +524,91 @@ impl Shell {
     /// This function will create the file and all intermediate directories if
     /// they don't exist.
     // TODO: probably want to make this an atomic rename write?
-    pub fn write_file<P: AsRef<Path>, C: AsRef<[u8]>>(&self, path: P, contents: C) -> Result<()> {
-        self._write_file(path.as_ref(), contents.as_ref())
-    }
-    fn _write_file(&self, path: &Path, contents: &[u8]) -> Result<()> {
-        let path = self.path(path);
-        if let Some(p) = path.parent() {
-            self.create_dir(p)?;
+    pub fn write_file(&self, path: impl AsRef<Path>, contents: impl AsRef<[u8]>) -> Result<()> {
+        fn inner(sh: &Shell, path: &Path, contents: &[u8]) -> Result<()> {
+            let path = sh.path(path);
+            if let Some(p) = path.parent() {
+                sh.create_dir(p)?;
+            }
+            fs::write(&path, contents).map_err(|err| Error::new_write_file(err, path))
         }
-        fs::write(&path, contents).map_err(|err| Error::new_write_file(err, path))
+        inner(self, path.as_ref(), contents.as_ref())
     }
 
-    /// Copies `src` into `dst`.
-    ///
-    /// `src` must be a file, but `dst` need not be. If `dst` is an existing
-    /// directory, `src` will be copied into a file in the `dst` directory whose
-    /// name is same as that of `src`.
-    ///
-    /// Otherwise, `dst` is a file or does not exist, and `src` will be copied into
-    /// it.
+    /// Creates a `dst` file with the same contents as `src`
     #[doc(alias = "cp")]
-    pub fn copy_file<S: AsRef<Path>, D: AsRef<Path>>(&self, src: S, dst: D) -> Result<()> {
-        self._copy_file(src.as_ref(), dst.as_ref())
-    }
-    fn _copy_file(&self, src: &Path, dst: &Path) -> Result<()> {
-        let src = self.path(src);
-        let dst = self.path(dst);
-        let dst = dst.as_path();
-        let mut _tmp;
-        let mut dst = dst;
-        if dst.is_dir() {
-            if let Some(file_name) = src.file_name() {
-                _tmp = dst.join(file_name);
-                dst = &_tmp;
+    pub fn copy_file_to_path(
+        &self,
+        src_file: impl AsRef<Path>,
+        dst_file: impl AsRef<Path>,
+    ) -> Result<()> {
+        fn inner(sh: &Shell, src: &Path, dst: &Path) -> Result<()> {
+            let src = sh.path(src);
+            let dst = sh.path(dst);
+            if let Some(p) = dst.parent() {
+                sh.create_dir(p)?;
             }
+            std::fs::copy(&src, dst)
+                .map_err(|err| Error::new_copy_file(err, src.to_path_buf(), dst.to_path_buf()))?;
+            Ok(())
         }
-        std::fs::copy(&src, dst)
-            .map_err(|err| Error::new_copy_file(err, src.to_path_buf(), dst.to_path_buf()))?;
-        Ok(())
+        inner(src_file.as_ref(), dst_file.as_ref())
+    }
+
+    /// Creates a file in `dst` directory with the same name and contents as `src`.
+    #[doc(alias = "cp")]
+    pub fn copy_file_to_dir(
+        &self,
+        src_file: impl AsRef<Path>,
+        dst_dir: impl AsRef<Path>,
+    ) -> Result<()> {
+        fn inner(sh: &Shell, src: &Path, dst: &Path) -> Result<()> {
+            let src = sh.path(src);
+            let dst = sh.path(dst);
+            let Some(file_name) = src.file_name() else {
+                return Err(Error::new_copy_file(io::ErrorKind::InvalidData.into(), src, dst));
+            };
+            sh.copy_file_to_path(src, &dst.join(file_name))
+        }
+        self._copy_file(src_file.as_ref(), dst_dir.as_ref())
     }
 
     /// Hardlinks `src` to `dst`.
     #[doc(alias = "ln")]
-    pub fn hard_link<S: AsRef<Path>, D: AsRef<Path>>(&self, src: S, dst: D) -> Result<()> {
-        self._hard_link(src.as_ref(), dst.as_ref())
-    }
-    fn _hard_link(&self, src: &Path, dst: &Path) -> Result<()> {
-        let src = self.path(src);
-        let dst = self.path(dst);
-        fs::hard_link(&src, &dst).map_err(|err| Error::new_hard_link(err, src, dst))
+    pub fn hard_link(&self, src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {
+        fn inner(sh: &Shell, src: &Path, dst: &Path) -> Result<()> {
+            let src = sh.path(src);
+            let dst = sh.path(dst);
+            fs::hard_link(&src, &dst).map_err(|err| Error::new_hard_link(err, src, dst))
+        }
+        inner(self, src.as_ref(), dst.as_ref())
     }
 
-    /// Creates the specified directory.
+    /// Returns a sorted list of paths directly contained in the directory at `path`.
+    #[doc(alias = "ls")]
+    pub fn read_dir(&self, path: impl AsRef<Path>) -> Result<Vec<PathBuf>> {
+        fn inner(sh: &Shell, path: &Path) -> Result<Vec<PathBuf>> {
+            let path = sh.path(path);
+            let mut res = Vec::new();
+            || -> _ {
+                for entry in fs::read_dir(&path)? {
+                    let entry = entry?;
+                    res.push(entry.path())
+                }
+                Ok(())
+            }()
+            .map_err(|err| Error::new_read_dir(err, path))?;
+            // Sort to ensure determinism, and ease debugging of downstream programs!
+            res.sort();
+            Ok(res)
+        }
+
+        inner(self, path.as_ref())
+    }
+
+    /// Ensures that the specified directory exist.
     ///
-    /// All intermediate directories will also be created.
+    /// All intermediate directories will also be created as needed.
     #[doc(alias("mkdir_p", "mkdir"))]
     pub fn create_dir<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf> {
         self._create_dir(path.as_ref())
@@ -615,12 +623,11 @@ impl Shell {
 
     /// Creates an empty named world-readable temporary directory.
     ///
-    /// Returns a [`TempDir`] RAII guard with the path to the directory. When
-    /// dropped, the temporary directory and all of its contents will be
-    /// removed.
+    /// Returns a [`TempDir`] RAII guard with the path to the directory. When dropped, the temporary
+    /// directory and all of its contents will be removed.
     ///
-    /// Note that this is an **insecure method** -- any other process on the
-    /// system will be able to read the data.
+    /// Note that this is an **insecure method** -- any other process on the system will be able to
+    /// read the data.
     #[doc(alias = "mktemp")]
     pub fn create_temp_dir(&self) -> Result<TempDir> {
         let base = std::env::temp_dir();
@@ -628,39 +635,45 @@ impl Shell {
 
         static CNT: AtomicUsize = AtomicUsize::new(0);
 
-        let mut n_try = 0u32;
+        // TODO: once std gets random numbers, start with random u128 here.
+        let mut try_count = 0u32;
         loop {
             let cnt = CNT.fetch_add(1, Ordering::Relaxed);
             let path = base.join(format!("xshell-tmp-dir-{}", cnt));
             match fs::create_dir(&path) {
                 Ok(()) => return Ok(TempDir { path }),
-                Err(err) if n_try == 1024 => return Err(Error::new_create_dir(err, path)),
-                Err(_) => n_try += 1,
+                Err(err) if try_count == 1024 => return Err(Error::new_create_dir(err, path)),
+                Err(_) => try_count += 1,
             }
         }
     }
 
     /// Removes the file or directory at the given path.
     #[doc(alias("rm_rf", "rm"))]
-    pub fn remove_path<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-        self._remove_path(path.as_ref())
-    }
-    fn _remove_path(&self, path: &Path) -> Result<(), Error> {
-        let path = self.path(path);
-        match path.metadata() {
-            Ok(meta) => if meta.is_dir() { remove_dir_all(&path) } else { fs::remove_file(&path) }
-                .map_err(|err| Error::new_remove_path(err, path)),
-            Err(err) if err.kind() == ErrorKind::NotFound => Ok(()),
-            Err(err) => Err(Error::new_remove_path(err, path)),
+    pub fn remove_path(&self, path: impl AsRef<Path>) -> Result<()> {
+        fn inner(sh: &Shell, path: &Path) -> Result<(), Error> {
+            let path = sh.path(path);
+            match path.metadata() {
+                Ok(meta) => {
+                    if meta.is_dir() { remove_dir_all(&path) } else { fs::remove_file(&path) }
+                        .map_err(|err| Error::new_remove_path(err, path))
+                }
+                Err(err) if err.kind() == ErrorKind::NotFound => Ok(()),
+                Err(err) => Err(Error::new_remove_path(err, path)),
+            }
         }
+        inner(self, path.as_ref())
     }
 
     /// Returns whether a file or directory exists at the given path.
+    ///
+    /// Be mindful of Time Of Check, Time Of Use (TOCTOU) errors -- often, it is better to attempt a
+    /// given operation and handle an error if a path doesn't exist, instead of trying to check
+    /// beforehand.
     #[doc(alias("stat"))]
     pub fn path_exists<P: AsRef<Path>>(&self, path: P) -> bool {
         self.path(path.as_ref()).exists()
     }
-    // endregion:fs
 
     /// Creates a new [`Cmd`] that executes the given `program`.
     pub fn cmd(&self, program: impl AsRef<OsStr>) -> Cmd {
@@ -696,12 +709,9 @@ pub struct Cmd {
     sh: Shell,
     prog: PathBuf,
     args: Vec<OsString>,
-    ignore_status: bool,
-    quiet: bool,
     secret: bool,
     stdin_contents: Option<Vec<u8>>,
-    ignore_stdout: bool,
-    ignore_stderr: bool,
+    deadline: Option<Instant>,
 }
 
 impl fmt::Display for Cmd {
@@ -731,27 +741,25 @@ impl From<Cmd> for Command {
 }
 
 impl Cmd {
-    fn new(sh: &Shell, prog: impl AsRef<Path>) -> Self {
-        Cmd {
-            sh: sh.clone(),
-            prog: prog.as_ref().into(),
-            args: Vec::new(),
-            ignore_status: false,
-            quiet: false,
-            secret: false,
-            stdin_contents: None,
-            ignore_stdout: false,
-            ignore_stderr: false,
+    fn new(sh: &Shell, program: impl AsRef<Path>) -> Cmd {
+        fn inner(sh: &Shell, program: &Path) -> Cmd {
+            Cmd {
+                sh: sh.clone(),
+                prog: program.into(),
+                args: Vec::new(),
+                secret: false,
+                stdin_contents: None,
+            }
         }
+        inner(sh, program.as_ref())
     }
 
-    // region:builder
-    /// Adds an argument to this commands.
-    pub fn arg(mut self, arg: impl AsRef<OsStr>) -> Self {
-        self._arg(arg.as_ref());
+    /// Adds an argument to this command.
+    pub fn arg(mut self, arg: impl AsRef<OsStr>) -> Cmd {
+        self.arg_inner(arg.as_ref());
         self
     }
-    fn _arg(&mut self, arg: &OsStr) {
+    fn arg_inner(&mut self, arg: &OsStr) {
         self.args.push(arg.to_owned())
     }
 
@@ -761,39 +769,38 @@ impl Cmd {
         I: IntoIterator,
         I::Item: AsRef<OsStr>,
     {
-        args.into_iter().for_each(|it| self._arg(it.as_ref()));
+        args.into_iter().for_each(|it| self.arg_inner(it.as_ref()));
         self
     }
 
     #[doc(hidden)]
-    pub fn __extend_arg(mut self, arg_fragment: impl AsRef<OsStr>) -> Self {
-        self.___extend_arg(arg_fragment.as_ref());
-        self
-    }
-    fn ___extend_arg(&mut self, arg_fragment: &OsStr) {
-        match self.args.last_mut() {
-            Some(last_arg) => last_arg.push(arg_fragment),
-            None => {
-                let mut inner = mem::take(&mut self.prog).into_os_string();
-                inner.push(arg_fragment);
-                self.prog = inner.into();
+    pub fn __extend_arg(mut self, arg_fragment: impl AsRef<OsStr>) -> Cmd {
+        fn inner(&mut self, arg_fragment: &OsStr) {
+            match self.args.last_mut() {
+                Some(last_arg) => last_arg.push(arg_fragment),
+                None => {
+                    let mut inner = mem::take(&mut self.prog).into_os_string();
+                    inner.push(arg_fragment);
+                    self.prog = inner.into();
+                }
             }
         }
+        inner(&mut self, arg_fragment.as_ref());
+        self
     }
 
     /// Overrides the value of the environmental variable for this command.
-    pub fn env(mut self, key: impl AsRef<OsStr>, val: impl AsRef<OsStr>) -> Self {
-        self._env_set(key.as_ref(), val.as_ref());
+    pub fn env(mut self, key: impl AsRef<OsStr>, val: impl AsRef<OsStr>) -> Cmd {
+        fn inner(sh: &mut Cmd, key: &OsStr, val: &OsStr) {
+            Arc::make_mut(&mut sh.sh.env).insert(key.into(), val.into());
+        }
+        inner(&mut self, key.as_ref(), val.as_ref());
         self
-    }
-
-    fn _env_set(&mut self, key: &OsStr, val: &OsStr) {
-        Arc::make_mut(&mut self.sh.env).insert(key.into(), val.into());
     }
 
     /// Overrides the values of specified environmental variables for this
     /// command.
-    pub fn envs<I, K, V>(mut self, vars: I) -> Self
+    pub fn envs<I, K, V>(mut self, vars: I) -> Cmd
     where
         I: IntoIterator<Item = (K, V)>,
         K: AsRef<OsStr>,
@@ -805,49 +812,34 @@ impl Cmd {
     }
 
     /// Removes the environment variable from this command.
-    pub fn env_remove(mut self, key: impl AsRef<OsStr>) -> Self {
-        self._env_remove(key.as_ref());
+    pub fn env_remove(mut self, key: impl AsRef<OsStr>) -> Cmd {
+        fn inner(sh: &mut Cmd, key: &OsStr) {
+            Arc::make_mut(&mut sh.sh.env).remove(key);
+        }
+        inner(&mut self, key.as_ref());
         self
-    }
-    fn _env_remove(&mut self, key: &OsStr) {
-        Arc::make_mut(&mut self.sh.env).remove(key);
     }
 
     /// Removes all of the environment variables from this command.
-    pub fn env_clear(mut self) -> Self {
+    pub fn env_clear(mut self) -> Cmd {
         Arc::make_mut(&mut self.sh.env).clear();
         self
     }
 
-    /// Don't return an error if command the command exits with non-zero status.
-    ///
-    /// By default, non-zero exit status is considered an error.
-    pub fn ignore_status(mut self) -> Self {
-        self.set_ignore_status(true);
+    /// Pass the given slice to the standard input of the spawned process.
+    pub fn stdin(mut self, stdin: impl AsRef<[u8]>) -> Self {
+        fn inner(sh: &mut Cmd, stdin: &[u8]) {
+            sh.stdin_contents = Some(stdin.to_vec());
+        }
+        inner(&mut self, stdin.as_ref());
         self
-    }
-    /// Controls whether non-zero exit status is considered an error.
-    pub fn set_ignore_status(&mut self, yes: bool) {
-        self.ignore_status = yes;
-    }
-
-    /// Don't echo the command itself to stderr.
-    ///
-    /// By default, the command itself will be printed to stderr when executed via [`Cmd::run`].
-    pub fn quiet(mut self) -> Self {
-        self.set_quiet(true);
-        self
-    }
-    /// Controls whether the command itself is printed to stderr.
-    pub fn set_quiet(&mut self, yes: bool) {
-        self.quiet = yes;
     }
 
     /// Marks the command as secret.
     ///
     /// If a command is secret, it echoes `<secret>` instead of the program and
     /// its arguments, even in error messages.
-    pub fn secret(mut self) -> Self {
+    pub fn secret(mut self) -> Cmd {
         self.set_secret(true);
         self
     }
@@ -856,70 +848,81 @@ impl Cmd {
         self.secret = yes;
     }
 
-    /// Pass the given slice to the standard input of the spawned process.
-    pub fn stdin(mut self, stdin: impl AsRef<[u8]>) -> Self {
-        self._stdin(stdin.as_ref());
-        self
-    }
-    fn _stdin(&mut self, stdin: &[u8]) {
-        self.stdin_contents = Some(stdin.to_vec());
-    }
-
-    /// Ignores the standard output stream of the process.
-    ///
-    /// This is equivalent to redirecting stdout to `/dev/null`. By default, the
-    /// stdout is inherited or captured.
-    pub fn ignore_stdout(mut self) -> Self {
-        self.set_ignore_stdout(true);
-        self
-    }
-    /// Controls whether the standard output is ignored.
-    pub fn set_ignore_stdout(&mut self, yes: bool) {
-        self.ignore_stdout = yes;
-    }
-
-    /// Ignores the standard output stream of the process.
-    ///
-    /// This is equivalent redirecting stderr to `/dev/null`. By default, the
-    /// stderr is inherited or captured.
-    pub fn ignore_stderr(mut self) -> Self {
-        self.set_ignore_stderr(true);
-        self
-    }
-    /// Controls whether the standard error is ignored.
-    pub fn set_ignore_stderr(&mut self, yes: bool) {
-        self.ignore_stderr = yes;
-    }
-    // endregion:builder
-
-    // region:running
-    /// Runs the command.
-    ///
-    /// By default the command itself is echoed to stderr, its standard streams
-    /// are inherited, and non-zero return code is considered an error. These
-    /// behaviors can be overridden by using various builder methods of the [`Cmd`].
-    pub fn run(&self) -> Result<()> {
-        if !self.quiet {
-            eprintln!("$ {}", self);
+    pub fn exec(&self) -> Result<()> {
+        let command = self.to_command();
+        let limit = 10 * 1024;
+        let result = exec3::exec3(
+            command,
+            self.stdin_contents.as_deref(),
+            Some(limit),
+            Some(limit),
+            self.deadline,
+        );
+        if let Some(status) = result.status {
+            if !status.success() {
+                return Err(Error::new_cmd(
+                    self,
+                    CmdErrorKind::Status(status),
+                    result.stdout,
+                    result.stderr,
+                ));
+            }
         }
-        self.output_impl(false, false).map(|_| ())
+        if let Some(err) = result.error {
+            if err.kind() == io::ErrorKind::TimedOut {
+                return Err(Error::new_cmd(
+                    self,
+                    CmdErrorKind::Timeout,
+                    result.stdout,
+                    result.stderr,
+                ));
+            } else {
+                return Err(Error::new_cmd(
+                    self,
+                    CmdErrorKind::Io(err),
+                    result.stdout,
+                    result.stderr,
+                ));
+            }
+        }
+        Ok(())
     }
 
-    /// Run the command and return its stdout as a string. Any trailing newline or carriage return will be trimmed.
+    pub fn exec_echo(&self) -> Result<()> {
+        let mut command = self.to_command();
+        command.stdin(Stdio::null());
+        command.stdout(Stdio::inherit());
+        command.stderr(Stdio::inherit());
+        eprintln!("$ {}", self);
+        let status = command.status().map_err(|err| Error::new_cmd_io(self, err))?;
+        self.check_status(status)?;
+        Ok(())
+    }
+
+    pub fn exec_interactive(&self) -> Result<()> {
+        let mut command = self.to_command();
+        command.stdin(Stdio::inherit());
+        command.stdout(Stdio::inherit());
+        command.stderr(Stdio::inherit());
+        eprintln!("$ {}", self);
+        let status = command.status().map_err(|err| Error::new_cmd_io(self, err))?;
+        self.check_status(status)?;
+        Ok(())
+    }
+
     pub fn read(&self) -> Result<String> {
-        self.read_stream(false)
+        let mut command = self.to_command();
+        command.stdin(Stdio::null());
+        command.stdout(Stdio::piped());
+        command.stderr(Stdio::piped());
     }
 
-    /// Run the command and return its stderr as a string. Any trailing newline or carriage return will be trimmed.
-    pub fn read_stderr(&self) -> Result<String> {
-        self.read_stream(true)
-    }
+    pub fn read_stderr(&self) -> Result<String> {}
 
     /// Run the command and return its output.
     pub fn output(&self) -> Result<Output> {
         self.output_impl(true, true)
     }
-    // endregion:running
 
     fn read_stream(&self, read_stderr: bool) -> Result<String> {
         let read_stdout = !read_stderr;
@@ -987,27 +990,15 @@ impl Cmd {
     }
 
     fn to_command(&self) -> Command {
-        let mut res = Command::new(&self.prog);
-        res.current_dir(&self.sh.cwd);
-        res.args(&self.args);
-
-        for (key, val) in &*self.sh.env {
-            res.env(key, val);
-        }
-
-        if self.ignore_stdout {
-            res.stdout(Stdio::null());
-        }
-
-        if self.ignore_stderr {
-            res.stderr(Stdio::null());
-        }
-
-        res
+        let mut result = Command::new(&self.prog);
+        result.current_dir(&self.sh.cwd);
+        result.args(&self.args);
+        result.envs(&*self.sh.env);
+        result
     }
 
     fn check_status(&self, status: ExitStatus) -> Result<()> {
-        if status.success() || self.ignore_status {
+        if status.success() {
             return Ok(());
         }
         Err(Error::new_cmd_status(self, status))

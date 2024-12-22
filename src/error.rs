@@ -8,6 +8,8 @@ use std::{
     sync::Arc,
 };
 
+use libc::SOCK_DGRAM;
+
 use crate::Cmd;
 
 /// `Result` from std, with the error type defaulting to xshell's [`Error`].
@@ -29,6 +31,7 @@ enum ErrorKind {
     HardLink { err: io::Error, src: PathBuf, dst: PathBuf },
     CreateDir { err: io::Error, path: PathBuf },
     RemovePath { err: io::Error, path: PathBuf },
+    Cmd(CmdError),
     CmdStatus { cmd: Cmd, status: ExitStatus },
     CmdIo { err: io::Error, cmd: Cmd },
     CmdUtf8 { err: FromUtf8Error, cmd: Cmd },
@@ -40,6 +43,20 @@ impl From<ErrorKind> for Error {
         let kind = Box::new(kind);
         Error { kind }
     }
+}
+
+struct CmdError {
+    cmd: Cmd,
+    kind: CmdErrorKind,
+    stdout: Vec<u8>,
+    stderr: Vec<u8>,
+}
+
+pub(crate) enum CmdErrorKind {
+    Io(io::Error),
+    Utf8(FromUtf8Error),
+    Status(ExitStatus),
+    Timeout,
 }
 
 impl fmt::Display for Error {
@@ -84,6 +101,8 @@ impl fmt::Display for Error {
                 let path = path.display();
                 write!(f, "failed to remove path `{path}`: {err}")
             }
+            ErrorKind::Cmd(cmd) => fmt::Display::fmt(f, cmd),
+
             ErrorKind::CmdStatus { cmd, status } => match status.code() {
                 Some(code) => write!(f, "command exited with non-zero code `{cmd}`: {code}"),
                 #[cfg(unix)]
@@ -123,6 +142,52 @@ impl fmt::Debug for Error {
 }
 impl std::error::Error for Error {}
 
+impl fmt::Display for CmdError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let nl = if (self.stdout.len() > 0 || self.stderr.len() > 0)
+            && !matches!(self.kind, CmdErrorKind::Utf8(_))
+        {
+            "\n"
+        } else {
+            ""
+        };
+        match &self.kind {
+            CmdErrorKind::Status(status) => match status.code() {
+                Some(code) => write!(f, "command exited with non-zero code `{cmd}`: {code}{nl}")?,
+                #[cfg(unix)]
+                None => {
+                    use std::os::unix::process::ExitStatusExt;
+                    match status.signal() {
+                        Some(sig) => {
+                            write!(f, "command was terminated by a signal `{cmd}`: {sig}{nl}")?
+                        }
+                        None => write!(f, "command was terminated by a signal `{cmd}`{nl}")?,
+                    }
+                }
+                #[cfg(not(unix))]
+                None => write!(f, "command was terminated by a signal `{cmd}`{nl}"),
+            },
+            CmdErrorKind::Utf8(err) => {
+                write!(f, "command produced invalid utf-8 `{cmd}`: {err}")?;
+                return Ok(());
+            }
+            CmdErrorKind::Io(err) => {
+                write!(f, "command failed `{cmd}`: {err}{nl}")?;
+            }
+            CmdErrorKind::Timeout => {
+                write!(f, "command timed out `{cmd}`{nl}")?;
+            }
+        }
+        if (self.stdout.len() > 0) {
+            write!(f, "stdout suffix\n:{}\n", String::from_utf8_lossy(&self.stdout))?;
+        }
+        if (self.stderr.len() > 0) {
+            write!(f, "stderr suffix:\n:{}\n", String::from_utf8_lossy(&self.stderr))?;
+        }
+        Ok(())
+    }
+}
+
 /// `pub(crate)` constructors, visible only in this crate.
 impl Error {
     pub(crate) fn new_current_dir(err: io::Error, path: Option<Arc<Path>>) -> Error {
@@ -161,9 +226,14 @@ impl Error {
         ErrorKind::RemovePath { err, path }.into()
     }
 
-    pub(crate) fn new_cmd_status(cmd: &Cmd, status: ExitStatus) -> Error {
+    pub(crate) fn new_cmd(
+        cmd: &Cmd,
+        kind: CmdErrorKind,
+        stdout: Vec<u8>,
+        stderr: Vec<u8>,
+    ) -> Error {
         let cmd = cmd.clone();
-        ErrorKind::CmdStatus { cmd, status }.into()
+        ErrorKind::Cmd(CmdError { cmd, kind, stdout, stderr }).into()
     }
 
     pub(crate) fn new_cmd_io(cmd: &Cmd, err: io::Error) -> Error {

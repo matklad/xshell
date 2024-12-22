@@ -5,7 +5,7 @@ categories = ["development-tools::build-utils", "filesystem"]
 version = "0.2.7" # also update xshell-macros/Cargo.toml and CHANGELOG.md
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/matklad/xshell"
-authors = ["Aleksey Kladov <aleksey.kladov@gmail.com>"]
+authors = ["Alex Kladov <aleksey.kladov@gmail.com>"]
 edition = "2021"
 rust-version = "1.63"
 
@@ -15,6 +15,12 @@ exclude = [".github/", "bors.toml", "rustfmt.toml", "cbench", "mock_bin/"]
 
 [dependencies]
 xshell-macros = { version = "=0.2.7", path = "./xshell-macros" }
+
+[target.'cfg(unix)'.dependencies]
+libc  = "0.2.155"
+
+[target.'cfg(windows)'.dependencies]
+miow  = "0.6.0"
 
 [dev-dependencies]
 anyhow = "1.0.56"
