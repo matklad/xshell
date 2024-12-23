@@ -326,7 +326,7 @@ fn test_subshells_env() {
         assert_eq!(e2.as_deref(), Some("1".as_ref()));
         {
             let mut sh = sh.clone();
-            let _e = sh.set_var(VAR, "2");
+            sh.set_var(VAR, "2");
             let e3 = sh.var_os(VAR);
             assert_eq!(e3.as_deref(), Some("2".as_ref()));
         }
@@ -383,14 +383,14 @@ fn test_copy_file() {
 fn test_exists() {
     let mut sh = setup();
     let tmp = sh.create_temp_dir().unwrap();
-    let _d = sh.set_current_dir(tmp.path());
+    sh.set_current_dir(tmp.path());
     assert!(!sh.path_exists("foo.txt"));
     sh.write_file("foo.txt", "foo").unwrap();
     assert!(sh.path_exists("foo.txt"));
     assert!(!sh.path_exists("bar"));
     sh.create_dir("bar").unwrap();
     assert!(sh.path_exists("bar"));
-    let _d = sh.set_current_dir("bar");
+    sh.set_current_dir("bar");
     assert!(!sh.path_exists("quz.rs"));
     sh.write_file("quz.rs", "fn main () {}").unwrap();
     assert!(sh.path_exists("quz.rs"));

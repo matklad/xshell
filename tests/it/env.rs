@@ -34,8 +34,8 @@ fn test_env() {
         );
     }
 
-    let _g1 = sh.set_var(v1, "foobar");
-    let _g2 = sh.set_var(v2, "quark");
+    sh.set_var(v1, "foobar");
+    sh.set_var(v2, "quark");
 
     assert_env(cmd!(sh, "xecho -$ {v1} {v2}"), &[(v1, Some("foobar")), (v2, Some("quark"))]);
     assert_env(cmd!(cloned_sh, "xecho -$ {v1} {v2}"), &[(v1, None), (v2, None)]);
@@ -79,8 +79,8 @@ fn test_env_clear() {
         &[(v1, Some("789")), (v2, None)],
     );
 
-    let _g1 = sh.set_var(v1, "foobar");
-    let _g2 = sh.set_var(v2, "quark");
+    sh.set_var(v1, "foobar");
+    sh.set_var(v2, "quark");
 
     assert_env(cmd!(sh, "{xecho} -$ {v1} {v2}").env_clear(), &[(v1, None), (v2, None)]);
     assert_env(
