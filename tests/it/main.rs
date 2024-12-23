@@ -24,7 +24,7 @@ fn setup() -> Shell {
             .unwrap_or_else(|err| panic!("failed to install binaries from mock_bin: {}", err));
     });
 
-    sh.set_env_var("PATH", target_dir);
+    sh.set_var("PATH", target_dir);
     sh
 }
 
@@ -318,22 +318,22 @@ const VAR: &str = "SPICA";
 fn test_subshells_env() {
     let sh = setup();
 
-    let e1 = sh.env_var_os(VAR);
+    let e1 = sh.var_os(VAR);
     {
         let mut sh = sh.clone();
-        sh.set_env_var(VAR, "1");
-        let e2 = sh.env_var_os(VAR);
+        sh.set_var(VAR, "1");
+        let e2 = sh.var_os(VAR);
         assert_eq!(e2.as_deref(), Some("1".as_ref()));
         {
             let mut sh = sh.clone();
-            let _e = sh.set_env_var(VAR, "2");
-            let e3 = sh.env_var_os(VAR);
+            let _e = sh.set_var(VAR, "2");
+            let e3 = sh.var_os(VAR);
             assert_eq!(e3.as_deref(), Some("2".as_ref()));
         }
-        let e4 = sh.env_var_os(VAR);
+        let e4 = sh.var_os(VAR);
         assert_eq!(e4, e2);
     }
-    let e5 = sh.env_var_os(VAR);
+    let e5 = sh.var_os(VAR);
     assert_eq!(e5, e1);
 }
 
@@ -341,17 +341,17 @@ fn test_subshells_env() {
 fn test_push_env_and_set_env_var() {
     let sh = setup();
 
-    let e1 = sh.env_var_os(VAR);
+    let e1 = sh.var_os(VAR);
     {
         let mut sh = sh.clone();
-        sh.set_env_var(VAR, "1");
-        let e2 = sh.env_var_os(VAR);
+        sh.set_var(VAR, "1");
+        let e2 = sh.var_os(VAR);
         assert_eq!(e2.as_deref(), Some("1".as_ref()));
-        sh.set_env_var(VAR, "2");
-        let e3 = sh.env_var_os(VAR);
+        sh.set_var(VAR, "2");
+        let e3 = sh.var_os(VAR);
         assert_eq!(e3.as_deref(), Some("2".as_ref()));
     }
-    let e5 = sh.env_var_os(VAR);
+    let e5 = sh.var_os(VAR);
     assert_eq!(e5, e1);
 }
 
@@ -369,7 +369,7 @@ fn test_copy_file() {
         sh.write_file(&foo, "hello world").unwrap();
         sh.create_dir(&dir).unwrap();
 
-        sh.copy_file_to_path(&foo, &bar).unwrap();
+        sh.copy_file(&foo, &bar).unwrap();
         assert_eq!(sh.read_file(&bar).unwrap(), "hello world");
 
         sh.copy_file_to_dir(&foo, &dir).unwrap();

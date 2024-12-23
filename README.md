@@ -14,11 +14,11 @@ fn main() -> anyhow::Result<()> {
 
     let user = "matklad";
     let repo = "xshell";
-    cmd!(sh, "git clone https://github.com/{user}/{repo}.git").run()?;
+    cmd!(sh, "git clone https://github.com/{user}/{repo}.git").run_echo()?;
     sh.set_current_dir(repo);
 
     let test_args = ["-Zunstable-options", "--report-time"];
-    cmd!(sh, "cargo test -- {test_args...}").run()?;
+    cmd!(sh, "cargo test -- {test_args...}").run_echo()?;
 
     let manifest = sh.read_file("Cargo.toml")?;
     let version = manifest
@@ -27,10 +27,10 @@ fn main() -> anyhow::Result<()> {
         .map(|it| it.0)
         .ok_or_else(|| anyhow::format_err!("can't find version field in the manifest"))?;
 
-    cmd!(sh, "git tag {version}").run()?;
+    cmd!(sh, "git tag {version}").run_echo()?;
 
-    let dry_run = if sh.env_var("CI").is_ok() { None } else { Some("--dry-run") };
-    cmd!(sh, "cargo publish {dry_run...}").run()?;
+    let dry_run = if sh.var("CI").is_ok() { None } else { Some("--dry-run") };
+    cmd!(sh, "cargo publish {dry_run...}").run_echo()?;
 
     Ok(())
 }

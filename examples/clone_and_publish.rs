@@ -21,7 +21,7 @@ fn main() -> anyhow::Result<()> {
 
     cmd!(sh, "git tag {version}").run()?;
 
-    let dry_run = if sh.env_var("CI").is_ok() { None } else { Some("--dry-run") };
+    let dry_run = if sh.var("CI").is_ok() { None } else { Some("--dry-run") };
     cmd!(sh, "cargo publish {dry_run...}").run()?;
 
     Ok(())

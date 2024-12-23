@@ -1,6 +1,23 @@
 # Changelog
 
-## Unreleased
+## 0.3.0-pre.1
+
+A major release with significant changes to the API:
+
+- Interior mutability and references are removed. Both `Cmd` and `Shell` are now values.
+- `pushd`-style API are removed in favor of `Shell`-returning functional builders like
+  `with_current_dir`.
+- Split `copy_file` into `copy_file` and `copy_file_to_dir`, removing auto-magical directory
+  detection.
+- Remove fine-grained control of stdin streams from `Cmd`. Instead:
+  - There's a menu of `run`, `run_echo`, `run_interactive`, `read` that generally try to do the
+    right thing.
+  - `run` no longer echoes the command by default, `run_echo` does that.
+  - The error messages now carry last 128KiB of stdout/stderr and print them on error.
+  - There's `to_command` method for converting to `std::process::Command` which does allow for fine
+    grained control.
+- Support for timeouts.
+- MSRV is raised to 1.73.0.
 
 ## 0.2.7
 

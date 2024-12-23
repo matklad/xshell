@@ -173,7 +173,7 @@
 //!
 //! ```no_run
 //! # use xshell::{Shell, cmd}; let sh = Shell::new().unwrap();
-//! let dry_run = if sh.env_var("CI").is_ok() { None } else { Some("--dry-run") };
+//! let dry_run = if sh.var("CI").is_ok() { None } else { Some("--dry-run") };
 //! cmd!(sh, "cargo publish {dry_run...}").run_echo()?;
 //! # Ok::<(), xshell::Error>(())
 //! ```
@@ -203,7 +203,7 @@
 //!
 //!     cmd!(sh, "git tag {version}").run_echo()?;
 //!
-//!     let dry_run = if sh.env_var("CI").is_ok() { None } else { Some("--dry-run") };
+//!     let dry_run = if sh.var("CI").is_ok() { None } else { Some("--dry-run") };
 //!     cmd!(sh, "cargo publish {dry_run...}").run()?;
 //!
 //!     Ok(())
@@ -217,8 +217,7 @@
 //!
 //! ## Maintenance
 //!
-//! Minimum Supported Rust Version: 1.63.0. MSRV bump is not considered semver breaking. MSRV is
-//! updated conservatively.
+//! MSRV bump is not considered semver breaking. MSRV is updated conservatively.
 //!
 //! The crate isn't comprehensive yet, but this is a goal. You are hereby encouraged to submit PRs
 //! with missing functionality!
@@ -426,10 +425,10 @@ impl Shell {
     ///
     /// Environment of the [`Shell`] affects all commands spawned via this
     /// shell.
-    pub fn env_var(&self, key: impl AsRef<OsStr>) -> Result<String> {
+    pub fn var(&self, key: impl AsRef<OsStr>) -> Result<String> {
         fn inner(sh: &Shell, key: &OsStr) -> Result<String> {
             let env_os = sh
-                .env_var_os(key)
+                .var_os(key)
                 .ok_or(VarError::NotPresent)
                 .map_err(|err| Error::new_var(err, key.to_os_string()))?;
             env_os
@@ -444,7 +443,7 @@ impl Shell {
     ///
     /// Environment of the [`Shell`] affects all commands spawned via this
     /// shell.
-    pub fn env_var_os(&self, key: impl AsRef<OsStr>) -> Option<OsString> {
+    pub fn var_os(&self, key: impl AsRef<OsStr>) -> Option<OsString> {
         fn inner(sh: &Shell, key: &OsStr) -> Option<OsString> {
             sh.env.get(key).map(OsString::from).or_else(|| env::var_os(key))
         }
@@ -457,7 +456,7 @@ impl Shell {
     ///
     /// Environment of the [`Shell`] affects all commands spawned via this
     /// shell.
-    pub fn env_vars_os(&self) -> HashMap<OsString, OsString> {
+    pub fn vars_os(&self) -> HashMap<OsString, OsString> {
         let mut result: HashMap<OsString, OsString> = Default::default();
         result.extend(env::vars_os());
         result.extend(self.env.iter().map(|(k, v)| (OsString::from(k), OsString::from(v))));
@@ -467,7 +466,7 @@ impl Shell {
     /// Sets the value of `key` environment variable for this [`Shell`] to `value`.
     ///
     /// Note that this doesn't affect [`std::env::var`].
-    pub fn set_env_var(&mut self, key: impl AsRef<OsStr>, value: impl AsRef<OsStr>) {
+    pub fn set_var(&mut self, key: impl AsRef<OsStr>, value: impl AsRef<OsStr>) {
         fn inner(sh: &mut Shell, key: &OsStr, value: &OsStr) {
             Arc::make_mut(&mut sh.env).insert(key.into(), value.into());
         }
@@ -477,7 +476,7 @@ impl Shell {
     /// Returns a new [`Shell`] with environmental variable `key` set to `value`.
     ///
     /// Note that this doesn't affect [`std::env::var`].
-    pub fn with_env_var(&self, key: impl AsRef<OsStr>, value: impl AsRef<OsStr>) -> Shell {
+    pub fn with_var(&self, key: impl AsRef<OsStr>, value: impl AsRef<OsStr>) -> Shell {
         fn inner(sh: &Shell, key: &OsStr, value: &OsStr) -> Shell {
             let mut env = Arc::clone(&sh.env);
             Arc::make_mut(&mut env).insert(key.into(), value.into());
@@ -523,11 +522,7 @@ impl Shell {
 
     /// Creates a `dst` file with the same contents as `src`
     #[doc(alias = "cp")]
-    pub fn copy_file_to_path(
-        &self,
-        src_file: impl AsRef<Path>,
-        dst_file: impl AsRef<Path>,
-    ) -> Result<()> {
+    pub fn copy_file(&self, src_file: impl AsRef<Path>, dst_file: impl AsRef<Path>) -> Result<()> {
         fn inner(sh: &Shell, src: &Path, dst: &Path) -> Result<()> {
             let src = sh.path(src);
             let dst = sh.path(dst);
@@ -554,7 +549,7 @@ impl Shell {
             let Some(file_name) = src.file_name() else {
                 return Err(Error::new_copy_file(io::ErrorKind::InvalidData.into(), src, dst));
             };
-            sh.copy_file_to_path(&src, &dst.join(file_name))
+            sh.copy_file(&src, &dst.join(file_name))
         }
         inner(self, src_file.as_ref(), dst_dir.as_ref())
     }
