@@ -1,10 +1,9 @@
-//! xshell is a swiss-army knife for writing cross-platform "bash" scripts in
-//! Rust.
+//! xshell is a swiss-army knife for writing cross-platform "bash" scripts in Rust.
 //!
-//! It doesn't use the shell directly, but rather re-implements parts of
-//! scripting environment in Rust. The intended use-case is various bits of glue
-//! code, which could be written in bash or python. The original motivation is
-//! [`xtask`](https://github.com/matklad/cargo-xtask) development.
+//! It doesn't use the shell directly, but rather re-implements parts of scripting environment in
+//! Rust. The intended use-case is various bits of glue code, which could be written in bash or
+//! python. The original motivation is [`xtask`](https://github.com/matklad/cargo-xtask)
+//! development.
 //!
 //! Here's a quick example:
 //!
@@ -19,19 +18,16 @@
 //!
 //! **Goals:**
 //!
-//! * Ergonomics and DWIM ("do what I mean"): `cmd!` macro supports
-//!   interpolation, writing to a file automatically creates parent directories,
-//!   etc.
-//! * Reliability: no [shell injection] by construction, good error messages
-//!   with file  paths, non-zero exit status is an error, independence of the
-//!   host environment, etc.
+//! * Ergonomics and DWIM ("do what I mean"): `cmd!` macro supports interpolation, writing to a file
+//!   automatically creates parent directories, etc.
+//! * Reliability: no [shell injection] by construction, good error messages with file  paths,
+//!   non-zero exit status is an error, independence of the host environment, etc.
 //! * Frugality: fast compile times, few dependencies, low-tech API.
 //!
-//! # Guide
+//! ## Guide
 //!
-//! For a short API overview, let's implement a script to clone a github
-//! repository and publish it as a crates.io crate. The script will do the
-//! following:
+//! For a short API overview, let's implement a script to clone a github repository and publish it
+//! as a crates.io crate. The script will do the following:
 //!
 //! 1. Clone the repository.
 //! 2. `cd` into the repository's directory.
@@ -51,23 +47,22 @@
 //! }
 //! ```
 //!
-//! Only two imports are needed -- the [`Shell`] struct the and [`cmd!`] macro.
-//! By convention, an instance of a [`Shell`] is stored in a variable named
-//! `sh`. All the API is available as methods, so a short name helps here. For
-//! "scripts", the [`anyhow`](https://docs.rs/anyhow) crate is a great choice
-//! for an error-handling library.
+//! Only two imports are needed -- the [`Shell`] struct the and [`cmd!`] macro. By convention, an
+//! instance of a [`Shell`] is stored in a variable named `sh`. All the API is available as methods,
+//! so a short name helps here. For "scripts", the [`anyhow`](https://docs.rs/anyhow) crate is a
+//! great choice for an error-handling library.
 //!
 //! Next, clone the repository:
 //!
 //! ```no_run
 //! # use xshell::{Shell, cmd}; let sh = Shell::new().unwrap();
-//! cmd!(sh, "git clone https://github.com/matklad/xshell.git").run()?;
+//! cmd!(sh, "git clone https://github.com/matklad/xshell.git").run_echo()?;
 //! # Ok::<(), xshell::Error>(())
 //! ```
 //!
-//! The [`cmd!`] macro provides a convenient syntax for creating a command --
-//! the [`Cmd`] struct. The [`Cmd::run`] method runs the command as if you
-//! typed it into the shell. The whole program outputs:
+//! The [`cmd!`] macro provides a convenient syntax for creating a command -- the [`Cmd`] struct.
+//! The [`Cmd::run_echo`] method runs the command as if you typed it into the shell. The whole
+//! program outputs:
 //!
 //! ```console
 //! $ git clone https://github.com/matklad/xshell.git
@@ -80,31 +75,33 @@
 //! Resolving deltas: 100% (327/327), done.
 //! ```
 //!
-//! Note that the command itself is echoed to stderr (the `$ git ...` bit in the
-//! output). You can use [`Cmd::quiet`] to override this behavior:
+//! Note that the command itself is echoed to stderr (the `$ git ...` bit in the output).
+//!
+//! Printing command itself and its output is a good default for "interactive" scripts where the
+//! user watches the output "live". For batch scripts, where the output is only relevant if an error
+//! occurs, there's run method:
 //!
 //! ```no_run
 //! # use xshell::{Shell, cmd}; let sh = Shell::new().unwrap();
 //! cmd!(sh, "git clone https://github.com/matklad/xshell.git")
-//!     .quiet()
 //!     .run()?;
 //! # Ok::<(), xshell::Error>(())
 //! ```
 //!
-//! To make the code more general, let's use command interpolation to extract
-//! the username and the repository:
+//! To make the code more general, let's use command interpolation to extract the username and the
+//! repository:
 //!
 //! ```no_run
 //! # use xshell::{Shell, cmd}; let sh = Shell::new().unwrap();
 //! let user = "matklad";
 //! let repo = "xshell";
-//! cmd!(sh, "git clone https://github.com/{user}/{repo}.git").run()?;
+//! cmd!(sh, "git clone https://github.com/{user}/{repo}.git").run_echo()?;
 //! # Ok::<(), xshell::Error>(())
 //! ```
 //!
-//! Note that the `cmd!` macro parses the command string at compile time, so you
-//! don't have to worry about escaping the arguments. For example, the following
-//! command "touches" a single file whose name is `contains a space`:
+//! Note that the `cmd!` macro parses the command string at compile time, so you don't have to worry
+//! about escaping the arguments. For example, the following command "touches" a single file whose
+//! name is `contains a space`:
 //!
 //! ```no_run
 //! # use xshell::{Shell, cmd}; let sh = Shell::new().unwrap();
@@ -121,21 +118,19 @@
 //! sh.set_current_dir(repo);
 //! ```
 //!
-//! Each instance of [`Shell`] has a current directory, which is independent of
-//! the process-wide [`std::env::current_dir`]. The same applies to the
-//! environment.
+//! Each instance of [`Shell`] has a current directory, which is independent of the process-wide
+//! [`std::env::current_dir`]. The same applies to the environment.
 //!
 //! Next, run the tests:
 //!
 //! ```no_run
 //! # use xshell::{Shell, cmd}; let sh = Shell::new().unwrap();
 //! let test_args = ["-Zunstable-options", "--report-time"];
-//! cmd!(sh, "cargo test -- {test_args...}").run()?;
+//! cmd!(sh, "cargo test -- {test_args...}").run_echo()?;
 //! # Ok::<(), xshell::Error>(())
 //! ```
 //!
-//! Note how the so-called splat syntax (`...`) is used to interpolate an
-//! iterable of arguments.
+//! Note how the so-called splat syntax (`...`) is used to interpolate an iterable of arguments.
 //!
 //! Next, read the Cargo.toml so that we can fetch crate' declared version:
 //!
@@ -145,21 +140,19 @@
 //! # Ok::<(), xshell::Error>(())
 //! ```
 //!
-//! [`Shell::read_file`] works like [`std::fs::read_to_string`], but paths are
-//! relative to the current directory of the [`Shell`]. Unlike [`std::fs`],
-//! error messages are much more useful. For example, if there isn't a
-//! `Cargo.toml` in the repository, the error message is:
+//! [`Shell::read_file`] works like [`std::fs::read_to_string`], but paths are relative to the
+//! current directory of the [`Shell`]. Unlike [`std::fs`], error messages are much more useful. For
+//! example, if there isn't a `Cargo.toml` in the repository, the error message is:
 //!
 //! ```text
 //! Error: failed to read file `xshell/Cargo.toml`: no such file or directory (os error 2)
 //! ```
 //!
-//! `xshell` doesn't implement string processing utils like `grep`, `sed` or
-//! `awk` -- there's no need to, built-in language features work fine, and it's
-//! always possible to pull extra functionality from crates.io.
+//! `xshell` doesn't implement string processing utils like `grep`, `sed` or `awk` -- there's no
+//! need to, built-in language features work fine, and it's always possible to pull extra
+//! functionality from crates.io.
 //!
-//! To extract the `version` field from Cargo.toml, [`str::split_once`] is
-//! enough:
+//! To extract the `version` field from Cargo.toml, [`str::split_once`] is enough:
 //!
 //! ```no_run
 //! # use xshell::{Shell, cmd}; let sh = Shell::new().unwrap();
@@ -170,18 +163,18 @@
 //!     .map(|it| it.0)
 //!     .ok_or_else(|| anyhow::format_err!("can't find version field in the manifest"))?;
 //!
-//! cmd!(sh, "git tag {version}").run()?;
+//! cmd!(sh, "git tag {version}").run_echo()?;
 //! # Ok::<(), anyhow::Error>(())
 //! ```
 //!
-//! The splat (`...`) syntax works with any iterable, and in Rust options are
-//! iterable. This means that `...` can be used to implement optional arguments.
-//! For example, here's how to pass `--dry-run` when *not* running in CI:
+//! The splat (`...`) syntax works with any iterable, and in Rust options are iterable. This means
+//! that `...` can be used to implement optional arguments. For example, here's how to pass
+//! `--dry-run` when *not* running in CI:
 //!
 //! ```no_run
 //! # use xshell::{Shell, cmd}; let sh = Shell::new().unwrap();
 //! let dry_run = if sh.env_var("CI").is_ok() { None } else { Some("--dry-run") };
-//! cmd!(sh, "cargo publish {dry_run...}").run()?;
+//! cmd!(sh, "cargo publish {dry_run...}").run_echo()?;
 //! # Ok::<(), xshell::Error>(())
 //! ```
 //!
@@ -199,7 +192,7 @@
 //!     sh.set_current_dir(repo);
 //!
 //!     let test_args = ["-Zunstable-options", "--report-time"];
-//!     cmd!(sh, "cargo test -- {test_args...}").run()?;
+//!     cmd!(sh, "cargo test -- {test_args...}").run_echo()?;
 //!
 //!     let manifest = sh.read_file("Cargo.toml")?;
 //!     let version = manifest
@@ -208,7 +201,7 @@
 //!         .map(|it| it.0)
 //!         .ok_or_else(|| anyhow::format_err!("can't find version field in the manifest"))?;
 //!
-//!     cmd!(sh, "git tag {version}").run()?;
+//!     cmd!(sh, "git tag {version}").run_echo()?;
 //!
 //!     let dry_run = if sh.env_var("CI").is_ok() { None } else { Some("--dry-run") };
 //!     cmd!(sh, "cargo publish {dry_run...}").run()?;
@@ -217,60 +210,53 @@
 //! }
 //! ```
 //!
-//! `xshell` itself uses a similar script to automatically publish oneself to
-//! crates.io when the version in Cargo.toml changes:
+//! `xshell` itself uses a similar script to automatically publish oneself to crates.io when the
+//! version in Cargo.toml changes:
 //!
 //! <https://github.com/matklad/xshell/blob/master/examples/ci.rs>
 //!
-//! # Maintenance
+//! ## Maintenance
 //!
-//! Minimum Supported Rust Version: 1.63.0. MSRV bump is not considered semver
-//! breaking. MSRV is updated conservatively.
+//! Minimum Supported Rust Version: 1.63.0. MSRV bump is not considered semver breaking. MSRV is
+//! updated conservatively.
 //!
-//! The crate isn't comprehensive yet, but this is a goal. You are hereby
-//! encouraged to submit PRs with missing functionality!
+//! The crate isn't comprehensive yet, but this is a goal. You are hereby encouraged to submit PRs
+//! with missing functionality!
 //!
 //! # Related Crates
 //!
-//! [`duct`] is a crate for heavy-duty process herding, with support for
-//! pipelines.
+//! [`duct`] is a crate for heavy-duty process herding, with support for pipelines.
 //!
-//! Most of what this crate provides can be open-coded using
-//! [`std::process::Command`] and [`std::fs`]. If you only need to spawn a
-//! single process, using `std` is probably better (but don't forget to check
-//! the exit status!).
+//! Most of what this crate provides can be open-coded using [`std::process::Command`] and
+//! [`std::fs`]. If you only need to spawn a single process, using `std` is probably better (but
+//! don't forget to check the exit status!).
 //!
 //! [`duct`]: https://github.com/oconnor663/duct.rs
-//! [shell injection]:
-//!     https://en.wikipedia.org/wiki/Code_injection#Shell_injection
+//! [shell injection]: https://en.wikipedia.org/wiki/Code_injection#Shell_injection
 //!
 //! The [`dax`](https://github.com/dsherret/dax) library for Deno shares the overall philosophy with
 //! `xshell`, but is much more thorough and complete. If you don't need Rust, use `dax`.
 //!
-//! # Implementation Notes
+//! ## Implementation Notes
 //!
 //! The design is heavily inspired by the Julia language:
 //!
-//! * [Shelling Out
-//!   Sucks](https://julialang.org/blog/2012/03/shelling-out-sucks/)
-//! * [Put This In Your
-//!   Pipe](https://julialang.org/blog/2013/04/put-this-in-your-pipe/)
+//! * [Shelling Out Sucks](https://julialang.org/blog/2012/03/shelling-out-sucks/)
+//! * [Put This In Your Pipe](https://julialang.org/blog/2013/04/put-this-in-your-pipe/)
 //! * [Running External
 //!   Programs](https://docs.julialang.org/en/v1/manual/running-external-programs/)
 //! * [Filesystem](https://docs.julialang.org/en/v1/base/file/)
 //!
 //! Smaller influences are the [`duct`] crate and Ruby's
-//! [`FileUtils`](https://ruby-doc.org/stdlib-2.4.1/libdoc/fileutils/rdoc/FileUtils.html)
-//! module.
+//! [`FileUtils`](https://ruby-doc.org/stdlib-2.4.1/libdoc/fileutils/rdoc/FileUtils.html) module.
 //!
-//! The `cmd!` macro uses a simple proc-macro internally. It doesn't depend on
-//! helper libraries, so the fixed-cost impact on compile times is moderate.
-//! Compiling a trivial program with `cmd!("date +%Y-%m-%d")` takes one second.
-//! Equivalent program using only `std::process::Command` compiles in 0.25
-//! seconds.
+//! The `cmd!` macro uses a simple proc-macro internally. It doesn't depend on helper libraries, so
+//! the fixed-cost impact on compile times is moderate. Compiling a trivial program with `cmd!("date
+//! +%Y-%m-%d")` takes one second. Equivalent program using only `std::process::Command` compiles in
+//! 0.25 seconds.
 //!
-//! To make IDEs infer correct types without expanding proc-macro, it is wrapped
-//! into a declarative macro which supplies type hints.
+//! To make IDEs infer correct types without expanding proc-macro, it is wrapped into a declarative
+//! macro which supplies type hints.
 
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
@@ -363,16 +349,15 @@ macro_rules! cmd {
 
 /// A `Shell` is the main API entry point.
 ///
-/// Almost all of the crate's functionality is available as methods of the
-/// `Shell` object.
+/// Almost all of the crate's functionality is available as methods of the `Shell` object.
 ///
-/// `Shell` is a stateful object. It maintains a logical working directory and
-/// an environment map. They are independent from process's
-/// [`std::env::current_dir`] and [`std::env::var`], and only affect paths and
-/// commands passed to the [`Shell`].
+/// `Shell` is a stateful object. It maintains a logical working directory and an environment map.
+/// They are independent from process's [`std::env::current_dir`] and [`std::env::var`], and only
+/// affect paths and commands passed to the [`Shell`]. `Shell` is cheaply clonable and you can use
+/// methods like [`Shell::with_current_dir`] to create independent copies with separate
+/// environments.
 ///
-///
-/// By convention, variable holding the shell is named `sh`.
+/// By convention, the variable holding the shell is named `sh`.
 ///
 /// # Example
 ///
@@ -394,7 +379,6 @@ pub struct Shell {
     env: Arc<HashMap<Arc<OsStr>, Arc<OsStr>>>,
 }
 
-/// You can use `Shell` in a tree manner by cloning the shell and modifying the `cwd`/`env` as needed.
 impl Shell {
     /// Creates a new [`Shell`].
     ///
@@ -613,14 +597,14 @@ impl Shell {
     /// All intermediate directories will also be created as needed.
     #[doc(alias("mkdir_p", "mkdir"))]
     pub fn create_dir<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf> {
-        self._create_dir(path.as_ref())
-    }
-    fn _create_dir(&self, path: &Path) -> Result<PathBuf> {
-        let path = self.path(path);
-        match fs::create_dir_all(&path) {
-            Ok(()) => Ok(path),
-            Err(err) => Err(Error::new_create_dir(err, path)),
+        fn inner(sh: &Shell, path: &Path) -> Result<PathBuf> {
+            let path = sh.path(path);
+            match fs::create_dir_all(&path) {
+                Ok(()) => Ok(path),
+                Err(err) => Err(Error::new_create_dir(err, path)),
+            }
         }
+        inner(self, path.as_ref())
     }
 
     /// Creates an empty named world-readable temporary directory.
@@ -690,9 +674,8 @@ impl Shell {
 
 /// A builder object for constructing a subprocess.
 ///
-/// A [`Cmd`] is usually created with the [`cmd!`] macro. The command exists
-/// within a context of a [`Shell`] and uses its working directory and
-/// environment.
+/// A [`Cmd`] is usually created with the [`cmd!`] macro. The command exists within a context of a
+/// [`Shell`] and uses its working directory and environment.
 ///
 /// # Example
 ///
@@ -702,9 +685,19 @@ impl Shell {
 /// let sh = Shell::new()?;
 ///
 /// let branch = "main";
-/// let cmd = cmd!(sh, "git switch {branch}").quiet().run()?;
+/// let cmd = cmd!(sh, "git switch {branch}").run()?;
 /// # Ok::<(), xshell::Error>(())
 /// ```
+///
+/// Use:
+///
+/// * [`Cmd::run_echo`] for interactive scripts where the user watches the output live.
+/// * [`Cmd::run`] for batch scripts where the output matters only if an error occurs.
+/// * [`Cmd::read`] to get command's output.
+///
+/// Methods for fine-grained control over child process stdio are intentionally not provided. If you
+/// need anything not covered by `Cmd` API, use [`Cmd::to_command`] to convert it to
+/// [`std::process::Command`].
 #[derive(Debug, Clone)]
 #[must_use]
 pub struct Cmd {
@@ -803,8 +796,7 @@ impl Cmd {
         self
     }
 
-    /// Overrides the values of specified environmental variables for this
-    /// command.
+    /// Overrides the values of specified environmental variables for this command.
     pub fn envs<I, K, V>(mut self, vars: I) -> Cmd
     where
         I: IntoIterator<Item = (K, V)>,
@@ -881,6 +873,7 @@ impl Cmd {
         self.set_secret(true);
         self
     }
+
     /// Controls whether the command is secret.
     pub fn set_secret(&mut self, yes: bool) {
         self.secret = yes;
@@ -894,10 +887,7 @@ impl Cmd {
     ///
     /// Internally, command's stdin is set to null, while stderr and stdout are piped.
     pub fn run(&self) -> Result<()> {
-        let mut command = self.to_command();
-        command.stdin(Stdio::null());
-        command.stdout(Stdio::piped());
-        command.stderr(Stdio::piped());
+        let command = self.to_command();
 
         let mut result = exec::exec(
             command,
@@ -988,11 +978,7 @@ impl Cmd {
     ///
     /// If the output is exactly one line, the final newline is stripped.
     pub fn read(&self) -> Result<String> {
-        let mut command = self.to_command();
-        command.stdin(Stdio::null());
-        command.stdout(Stdio::piped());
-        command.stderr(Stdio::piped());
-
+        let command = self.to_command();
         let mut result = exec::exec(
             command,
             self.stdin_contents.as_deref(),
@@ -1008,11 +994,7 @@ impl Cmd {
     ///
     /// If the output is exactly one line, the final newline is stripped.
     pub fn read_stderr(&self) -> Result<String> {
-        let mut command = self.to_command();
-        command.stdin(Stdio::null());
-        command.stdout(Stdio::piped());
-        command.stderr(Stdio::piped());
-
+        let command = self.to_command();
         let mut result = exec::exec(
             command,
             self.stdin_contents.as_deref(),
@@ -1055,13 +1037,13 @@ impl Cmd {
 
     /// Constructs a [`std::process::Command`] for the same command as `self`.
     ///
-    /// The returned command will invoke the same program from the same working
-    /// directory and with the same environment as `self`.  If the command was
-    /// set to [`ignore_stdout`](Cmd::ignore_stdout) or [`ignore_stderr`](Cmd::ignore_stderr),
-    /// this will apply to the returned command as well.
+    /// The returned command will invoke the same program from the same working directory and with
+    /// the same environment as `self`.  If the command was set to
+    /// [`ignore_stdout`](Cmd::ignore_stdout) or [`ignore_stderr`](Cmd::ignore_stderr), this will
+    /// apply to the returned command as well.
     ///
-    /// Other builder methods have no effect on the command returned since they
-    /// control how the command is run, but this method does not yet execute the command.
+    /// Other builder methods have no effect on the command returned since they control how the
+    /// command is run, but this method does not yet execute the command.
     pub fn to_command(&self) -> Command {
         let mut result = Command::new(&self.prog);
         result.current_dir(&self.sh.cwd);
