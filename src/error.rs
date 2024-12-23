@@ -151,7 +151,7 @@ impl fmt::Display for CmdError {
             }
         }
         if self.stdout.len() > 0 {
-            write!(f, "stdout suffix\n{}\n", String::from_utf8_lossy(&self.stdout))?;
+            write!(f, "stdout suffix:\n{}\n", String::from_utf8_lossy(&self.stdout))?;
         }
         if self.stderr.len() > 0 {
             write!(f, "stderr suffix:\n{}\n", String::from_utf8_lossy(&self.stderr))?;

@@ -72,7 +72,7 @@ pub(crate) fn exec(
     deadline: Option<Instant>,
 ) -> ExecResult {
     let mut result = ExecResult::default();
-    command.stdin(if stdin_contents.is_some() { Stdio::inherit() } else { Stdio::null() });
+    command.stdin(if stdin_contents.is_some() { Stdio::piped() } else { Stdio::null() });
     command.stdout(Stdio::piped());
     command.stderr(Stdio::piped());
     let mut child = match command.spawn() {
