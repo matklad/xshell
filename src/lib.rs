@@ -20,8 +20,8 @@
 //!
 //! * Ergonomics and DWIM ("do what I mean"): `cmd!` macro supports interpolation, writing to a file
 //!   automatically creates parent directories, etc.
-//! * Reliability: no [shell injection] by construction, good error messages with file  paths,
-//!   non-zero exit status is an error, independence of the host environment, etc.
+//! * Reliability: no [shell injection] by construction, good error messages with file paths,
+//!   non-zero exit status is an error, consistent behavior across platforms, etc.
 //! * Frugality: fast compile times, few dependencies, low-tech API.
 //!
 //! ## Guide
