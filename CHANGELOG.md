@@ -2,7 +2,10 @@
 
 ## Unreleased
 
+## 0.2.7
+
 - MSRV is raised to 1.63.0
+- Avoid using non-existant cfg in macros
 
 ## 0.2.6
 
