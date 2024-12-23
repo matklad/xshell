@@ -1082,7 +1082,7 @@ fn remove_dir_all(path: &Path) -> io::Result<()> {
         if fs::remove_dir_all(path).is_ok() {
             return Ok(());
         }
-        std::thread::xsleep(std::time::Duration::from_millis(10))
+        std::thread::sleep(std::time::Duration::from_millis(10))
     }
     fs::remove_dir_all(path)
 }
