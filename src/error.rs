@@ -132,7 +132,7 @@ impl fmt::Display for CmdError {
                     }
                 }
                 #[cfg(not(unix))]
-                None => write!(f, "command was terminated by a signal `{cmd}`{nl}"),
+                None => write!(f, "command was terminated by a signal `{cmd}`{nl}")?,
             },
             CmdErrorKind::Utf8(err) => {
                 write!(f, "command produced invalid utf-8 `{cmd}`: {err}")?;
