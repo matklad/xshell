@@ -35,7 +35,9 @@ fn smoke() {
 #[test]
 fn into_command() {
     let sh = setup();
-    let _: std::process::Command = cmd!(sh, "git branch").into();
+    let cmd = cmd!(sh, "git branch");
+    let _ = cmd.to_command();
+    let _: std::process::Command = cmd.into();
 }
 
 #[test]

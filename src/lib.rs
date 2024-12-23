@@ -1053,7 +1053,16 @@ impl Cmd {
         })
     }
 
-    fn to_command(&self) -> Command {
+    /// Constructs a [`std::process::Command`] for the same command as `self`.
+    ///
+    /// The returned command will invoke the same program from the same working
+    /// directory and with the same environment as `self`.  If the command was
+    /// set to [`ignore_stdout`](Cmd::ignore_stdout) or [`ignore_stderr`](Cmd::ignore_stderr),
+    /// this will apply to the returned command as well.
+    ///
+    /// Other builder methods have no effect on the command returned since they
+    /// control how the command is run, but this method does not yet execute the command.
+    pub fn to_command(&self) -> Command {
         let mut result = Command::new(&self.prog);
         result.current_dir(&self.sh.cwd);
         result.args(&self.args);
