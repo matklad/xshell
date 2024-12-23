@@ -315,8 +315,9 @@ const STREAM_SUFFIX_SIZE: usize = 128 * 1024; // 128KiB
 /// let c = cmd!(sh, "echo {greeting}!");
 /// assert_eq!(c.to_string(), r#"echo "hello world!""#);
 ///
-/// let c = cmd!(sh, "echo 'spaces '{greeting}' around'");
-/// assert_eq!(c.to_string(), r#"echo "spaces hello world around""#);
+/// // Like in the shell, single quotes prevent interpolation:
+/// let c = cmd!(sh, "echo 'spaces '{greeting}' around {greeting}'");
+/// assert_eq!(c.to_string(), r#"echo "spaces hello world around {greeting}""#);
 ///
 /// # Ok::<(), xshell::Error>(())
 /// ```
